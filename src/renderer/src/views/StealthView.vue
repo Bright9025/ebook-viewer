@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import type { Book as EpubBook, NavItem, Rendition } from 'epubjs'
-import type { AppSettings, BgSample, StealthInitPayload } from '@shared/types'
+import type { AppSettings, StealthInitPayload, UnderlayCapture } from '@shared/types'
 import { defaultStealthSettings } from '@shared/defaults'
 import { inkForBackground, type InkStyle } from '../lib/color'
 import { collectTopAnchor } from '../lib/anchor'
 import { chapterLabelFor, flattenToc, loadBook, toArrayBuffer } from '../lib/epub'
+import { extractPageLines } from '../lib/page-text'
 import { useAppStore } from '../stores/app'
+import AppIcon from '../components/AppIcon.vue'
 
 const store = useAppStore()
 
 const rootEl = ref<HTMLElement | null>(null)
 const viewerEl = ref<HTMLElement | null>(null)
+const textLayer = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const loadError = ref('')
 const hintVisible = ref(true)
+const hovered = ref(false)
+const fontSize = ref(15)
 
 const epubBook = shallowRef<EpubBook | null>(null)
 const rendition = shallowRef<Rendition | null>(null)
@@ -22,18 +27,35 @@ const toc = ref<{ href: string; label: string; level: number }[]>([])
 const currentBookId = ref('')
 const locationsReady = ref(false)
 const settings = ref<AppSettings['stealth']>({ ...defaultStealthSettings })
-const ink = ref<InkStyle>({
-  color: 'rgba(40, 40, 40, 0.72)',
-  shadow: '0 0 1px rgba(250, 248, 242, 0.6)',
+const fallbackInk = ref<InkStyle>({
+  color: 'rgba(60, 58, 54, 0.72)',
+  shadow: '0 0 1px rgba(240, 236, 228, 0.6)',
   contrast: 3
 })
+const uiColor = ref('rgba(120, 118, 112, 0.82)')
 
+interface Underlay {
+  data: ImageData
+  width: number
+  height: number
+  windowWidth: number
+  windowHeight: number
+  offsetX: number
+  offsetY: number
+}
+
+let underlay: Underlay | null = null
+let charSpans: HTMLElement[] = []
+let lineTexts: string[] = []
+let lastInk: InkStyle = fallbackInk.value
 let applyingRemote = false
 let sendTimer: number | null = null
 let hintTimer: number | null = null
+let resizeTimer: number | null = null
+let recolorFrame = 0
 let boundDocs = new WeakSet<Document>()
 let offInit: (() => void) | null = null
-let offBackground: (() => void) | null = null
+let offUnderlay: (() => void) | null = null
 let offRemote: (() => void) | null = null
 
 onMounted(() => {
@@ -44,8 +66,8 @@ onMounted(() => {
   offInit = window.api.stealth.onInit((payload) => {
     void handleInit(payload)
   })
-  offBackground = window.api.stealth.onBackground((sample) => {
-    applyBackground(sample)
+  offUnderlay = window.api.stealth.onUnderlay((capture) => {
+    void applyUnderlay(capture)
   })
   offRemote = window.api.events.onRemoteProgress((progress) => {
     if (progress.source === 'stealth' || progress.bookId !== currentBookId.value || !rendition.value) return
@@ -54,6 +76,7 @@ onMounted(() => {
 
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('mousemove', revealHint)
+  window.addEventListener('resize', onWindowResize)
   window.addEventListener('pointerup', clearResize)
   window.api.stealth.ready()
   scheduleHintHide()
@@ -62,11 +85,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   sendProgress()
   offInit?.()
-  offBackground?.()
+  offUnderlay?.()
   offRemote?.()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('mousemove', revealHint)
+  window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('pointerup', clearResize)
+  if (recolorFrame) cancelAnimationFrame(recolorFrame)
   document.body.classList.remove('stealth-body')
   document.documentElement.style.background = ''
   try {
@@ -80,6 +105,7 @@ onBeforeUnmount(() => {
 
 async function handleInit(payload: StealthInitPayload): Promise<void> {
   settings.value = payload.settings.stealth
+  fontSize.value = payload.settings.stealth.fontSize
   const sameBook = currentBookId.value === payload.book.id && rendition.value
   currentBookId.value = payload.book.id
   if (sameBook) {
@@ -112,15 +138,11 @@ async function openBook(book: { id: string; title: string }, cfi: string): Promi
       allowScriptedContent: false
     })
     rendition.value = renditionInstance
-    ;(renditionInstance as any).hooks.content.register((contents: any) => {
-      injectStyle(contents.document)
-    })
-
     await renditionInstance.display(cfi || undefined)
-    await wait(120)
+    await wait(160)
     renditionInstance.on('relocated', onRelocated)
     bindIframeEvents()
-    applyStyleEverywhere()
+    await refreshPageText()
     loading.value = false
     sendProgress()
     installTestHooks()
@@ -143,15 +165,16 @@ async function displayCfi(cfi: string): Promise<void> {
   if (!instance || !cfi) return
   try {
     await instance.display(cfi)
-    applyStyleEverywhere()
+    await wait(140)
+    await refreshPageText()
   } catch (error) {
     console.warn('[stealth] display failed', error)
   }
 }
 
 function onRelocated(): void {
-  applyStyleEverywhere()
   if (applyingRemote) return
+  void refreshPageText()
   scheduleSend()
 }
 
@@ -184,7 +207,7 @@ function sendProgress(): void {
     cfi,
     percent: Math.max(0, Math.min(1, percentValue)),
     chapter: chapterLabelFor(toc.value, location.href),
-    sentence: top?.sentence ?? '',
+    sentence: top?.sentence ?? lineTexts[0] ?? '',
     source: 'stealth'
   })
 }
@@ -196,8 +219,8 @@ async function applyRemote(cfi: string): Promise<void> {
   applyingRemote = true
   try {
     await instance.display(cfi)
-    await wait(100)
-    applyStyleEverywhere()
+    await wait(140)
+    await refreshPageText()
   } catch (error) {
     console.warn('[stealth] remote display failed', error)
   } finally {
@@ -207,65 +230,179 @@ async function applyRemote(cfi: string): Promise<void> {
   }
 }
 
-function applyFallbackInk(): void {
-  const dark = store.theme === 'dark'
-  ink.value = inkForBackground(
-    dark ? { r: 20, g: 22, b: 26, luminance: 0.01 } : { r: 247, g: 243, b: 234, luminance: 0.89 },
-    settings.value.opacity
-  )
-}
-
-function applyBackground(sample: BgSample): void {
-  ink.value = inkForBackground(sample, settings.value.opacity)
-  applyStyleEverywhere()
-}
-
-function applyStyleEverywhere(): void {
+async function refreshPageText(): Promise<void> {
   const instance = rendition.value
   if (!instance) return
   const list = instance.getContents() as unknown as Array<{ document?: Document }>
   for (const item of list) {
-    if (item?.document) injectStyle(item.document)
+    if (item?.document) injectHiddenStyle(item.document)
   }
+  await wait(60)
+  lineTexts = extractPageLines(instance)
+  renderTextLayer()
+  requestAnimationFrame(() => colorize())
 }
 
-function injectStyle(doc: Document): void {
-  if (!doc?.documentElement || !doc.head) return
-  let style = doc.getElementById('stealth-style') as HTMLStyleElement | null
+/** Match the hidden EPUB page to the visible text layer so line breaks agree. */
+function injectHiddenStyle(doc: Document): void {
+  if (!doc?.head) return
+  let style = doc.getElementById('stealth-layout') as HTMLStyleElement | null
   if (!style) {
     style = doc.createElement('style')
-    style.id = 'stealth-style'
+    style.id = 'stealth-layout'
     doc.head.appendChild(style)
   }
-  const hideImages = settings.value.hideImages
-  const fontSize = settings.value.fontSize
   style.textContent = `
-    html, body { background: transparent !important; }
-    html { color-scheme: light dark; }
-    body {
+    html, body {
+      background: transparent !important;
       margin: 0 !important;
-      padding: 12px 18px 10px !important;
-      color: ${ink.value.color} !important;
+      padding: 30px 18px 16px !important;
+      box-sizing: border-box !important;
       font-family: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', SimSun, serif !important;
-      font-size: ${fontSize}px !important;
+      font-size: ${fontSize.value}px !important;
       line-height: 1.76 !important;
       text-align: left !important;
-      overflow: hidden !important;
-      -webkit-font-smoothing: antialiased;
-    }
-    body, body * {
-      color: ${ink.value.color} !important;
-      background-color: transparent !important;
-      text-shadow: ${ink.value.shadow} !important;
-      border-color: transparent !important;
     }
     p { margin: 0 0 0.55em !important; }
     h1, h2, h3, h4, h5, h6 { font-size: 1.05em !important; margin: 0 0 0.4em !important; }
-    img, svg, video, figure, figcaption, table { display: ${hideImages ? 'none' : 'revert'} !important; }
-    a { text-decoration: none !important; }
-    ::selection { background: rgba(128, 128, 128, 0.18) !important; }
-    ::-webkit-scrollbar { display: none !important; }
+    img, svg, video, figure, figcaption, table { display: none !important; }
   `
+}
+
+function renderTextLayer(): void {
+  const layer = textLayer.value
+  if (!layer) return
+  layer.textContent = ''
+  charSpans = []
+  if (!lineTexts.length) {
+    layer.textContent = loading.value ? '正在展开…' : '（本页没有可显示的文字）'
+    return
+  }
+  for (const line of lineTexts) {
+    const row = document.createElement('div')
+    row.className = 'stealth-line'
+    for (const char of line) {
+      if (/\s/.test(char)) {
+        row.appendChild(document.createTextNode(char))
+        continue
+      }
+      const span = document.createElement('span')
+      span.className = 'stealth-ch'
+      span.textContent = char
+      row.appendChild(span)
+      charSpans.push(span)
+    }
+    layer.appendChild(row)
+  }
+}
+
+async function applyUnderlay(capture: UnderlayCapture): Promise<void> {
+  try {
+    const image = new Image()
+    image.src = capture.dataUrl
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = capture.width
+    canvas.height = capture.height
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) return
+    context.drawImage(image, 0, 0)
+    underlay = {
+      data: context.getImageData(0, 0, capture.width, capture.height),
+      width: capture.width,
+      height: capture.height,
+      windowWidth: capture.windowWidth,
+      windowHeight: capture.windowHeight,
+      offsetX: capture.offsetX,
+      offsetY: capture.offsetY
+    }
+    colorize()
+  } catch (error) {
+    console.warn('[stealth] underlay decode failed', error)
+  }
+}
+
+function colorize(): void {
+  if (recolorFrame) cancelAnimationFrame(recolorFrame)
+  recolorFrame = requestAnimationFrame(() => {
+    recolorFrame = 0
+    const layer = textLayer.value
+    if (!layer || !charSpans.length) return
+    if (!underlay) {
+      applyFallbackInk()
+      return
+    }
+    const { data, width, height, windowWidth, windowHeight, offsetX, offsetY } = underlay
+    const pixels = data.data
+    const sx = width / Math.max(1, windowWidth)
+    const sy = height / Math.max(1, windowHeight)
+    let contrastSum = 0
+    let count = 0
+    for (const span of charSpans) {
+      const rect = span.getBoundingClientRect()
+      const row = span.parentElement
+      if (rect.bottom < 0 || rect.top > window.innerHeight || rect.width <= 0 || !row) continue
+      const rowRect = row.getBoundingClientRect()
+      // Sample the leading between lines rather than the glyph itself: the
+      // overlay's own text is part of the screen capture, and sampling a glyph
+      // would feed its color back into the next iteration. The vertical gaps
+      // between lines are pure background at the glyph's own x position.
+      const candidates = [
+        { x: rect.left + rect.width / 2, y: rowRect.top - 6 },
+        { x: rect.left + rect.width / 2, y: rowRect.top - 3 },
+        { x: rect.left + rect.width / 2, y: rowRect.bottom + 3 },
+        { x: rect.left + rect.width / 2, y: rowRect.bottom + 6 }
+      ]
+      let r = 0
+      let g = 0
+      let b = 0
+      let n = 0
+      for (const point of candidates) {
+        const x = Math.round((point.x + offsetX) * sx)
+        const y = Math.round((point.y + offsetY) * sy)
+        if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) continue
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const index = ((y + dy) * width + (x + dx)) * 4
+            r += pixels[index]
+            g += pixels[index + 1]
+            b += pixels[index + 2]
+            n++
+          }
+        }
+      }
+      if (!n) continue
+      const bg = { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) }
+      const ink = inkForBackground({ ...bg, luminance: 0 }, settings.value.opacity)
+      span.style.color = ink.color
+      span.style.textShadow = ink.shadow
+      contrastSum += ink.contrast
+      count++
+      if (count === 1) {
+        uiColor.value = `rgba(${bg.r}, ${bg.g}, ${bg.b}, 0.9)`
+      }
+    }
+    if (count) {
+      lastInk = {
+        color: charSpans[0]?.style.color || fallbackInk.value.color,
+        shadow: charSpans[0]?.style.textShadow || fallbackInk.value.shadow,
+        contrast: Math.round((contrastSum / count) * 100) / 100
+      }
+    }
+  })
+}
+
+function applyFallbackInk(): void {
+  const dark = store.theme === 'dark'
+  const bg = dark ? { r: 20, g: 22, b: 26, luminance: 0.01 } : { r: 247, g: 243, b: 234, luminance: 0.89 }
+  const ink = inkForBackground(bg, settings.value.opacity)
+  fallbackInk.value = ink
+  lastInk = ink
+  for (const span of charSpans) {
+    span.style.color = ink.color
+    span.style.textShadow = ink.shadow
+  }
+  uiColor.value = dark ? 'rgba(220, 216, 208, 0.72)' : 'rgba(90, 86, 78, 0.72)'
 }
 
 function bindIframeEvents(): void {
@@ -310,9 +447,27 @@ async function page(direction: 'next' | 'prev'): Promise<void> {
   try {
     if (direction === 'next') await instance.next()
     else await instance.prev()
+    await wait(140)
+    await refreshPageText()
   } catch (error) {
     console.warn('[stealth] page turn failed', error)
   }
+}
+
+function onWindowResize(): void {
+  if (resizeTimer) window.clearTimeout(resizeTimer)
+  resizeTimer = window.setTimeout(() => {
+    resizeTimer = null
+    void refreshPageText()
+  }, 360)
+}
+
+function setPreset(width: number, height: number): void {
+  window.api.stealth.setSize(width, height)
+}
+
+function hideStealth(): void {
+  window.api.stealth.hide()
 }
 
 function exitStealth(): void {
@@ -335,11 +490,12 @@ function scheduleHintHide(): void {
 function installTestHooks(): void {
   window.__ebookTest = {
     ready: () => !loading.value && Boolean(rendition.value),
-    topSentence: () => collectTopAnchor(rendition.value)?.sentence ?? '',
+    topSentence: () => lineTexts[0] ?? '',
     cfi: () => ((rendition.value?.currentLocation() as any)?.start?.cfi ?? '') as string,
+    ink: () => lastInk,
+    lines: () => lineTexts.length,
     next: () => page('next'),
-    prev: () => page('prev'),
-    ink: () => ink.value
+    prev: () => page('prev')
   }
 }
 
@@ -353,7 +509,6 @@ function startResize(event: PointerEvent): void {
   const rect = root.getBoundingClientRect()
   resizeStart = { x: event.screenX, y: event.screenY, width: rect.width, height: rect.height }
   window.addEventListener('pointermove', onResizeMove)
-  window.addEventListener('pointerdown', clearResize, { once: true })
 }
 
 function onResizeMove(event: PointerEvent): void {
@@ -374,18 +529,40 @@ function wait(ms: number): Promise<void> {
 </script>
 
 <template>
-  <div ref="rootEl" class="stealth-root" @dblclick.self="exitStealth">
-    <div ref="viewerEl" class="stealth-viewer" />
+  <div
+    ref="rootEl"
+    class="stealth-root"
+    @dblclick.self="exitStealth"
+    @mouseenter="hovered = true"
+    @mouseleave="hovered = false"
+  >
+    <div ref="viewerEl" class="stealth-viewer" aria-hidden="true" />
+    <div ref="textLayer" class="stealth-text" :style="{ fontSize: `${fontSize}px`, color: fallbackInk.color }" />
 
-    <div class="drag-strip drag" title="拖动移动" />
+    <div class="stealth-toolbar no-drag" :class="{ visible: hovered }" :style="{ color: uiColor }">
+      <button class="tool-button size-button" type="button" title="小窗" @click="setPreset(420, 110)">S</button>
+      <button class="tool-button size-button" type="button" title="中窗" @click="setPreset(560, 168)">M</button>
+      <button class="tool-button size-button" type="button" title="大窗" @click="setPreset(720, 220)">L</button>
+      <span class="tool-divider" />
+      <button class="tool-button" type="button" title="隐藏（Esc / Ctrl+Shift+H）" @click="hideStealth">
+        <AppIcon name="eye-off" :size="14" />
+      </button>
+      <button class="tool-button" type="button" title="退出摸鱼模式" @click="exitStealth">
+        <AppIcon name="close" :size="14" />
+      </button>
+    </div>
 
-    <div v-if="loading" class="stealth-loading" :style="{ color: ink.color }">正在展开…</div>
-    <div v-else-if="loadError" class="stealth-loading" :style="{ color: ink.color }">这一页没有打开</div>
+    <div class="drag-strip drag" title="按住这里移动窗口">
+      <span class="drag-grip" />
+    </div>
 
-    <div class="resize-handle" title="拖动调整大小" @pointerdown="startResize" />
+    <div v-if="loading" class="stealth-loading" :style="{ color: fallbackInk.color }">正在展开…</div>
+    <div v-else-if="loadError" class="stealth-loading" :style="{ color: fallbackInk.color }">这一页没有打开</div>
 
-    <div class="stealth-hint" :class="{ visible: hintVisible }" :style="{ color: ink.color }">
-      <span>← →</span> 翻页 <span>Esc</span> 隐藏 <span>双击</span> 退出
+    <div class="resize-handle no-drag" title="拖动调整大小" @pointerdown="startResize" />
+
+    <div class="stealth-hint" :class="{ visible: hintVisible }" :style="{ color: uiColor }">
+      <span>← →</span> 翻页 <span>Esc</span> 隐藏 <span>拖动顶部</span> 移动 <span>S/M/L</span> 尺寸
     </div>
   </div>
 </template>
@@ -397,18 +574,91 @@ function wait(ms: number): Promise<void> {
   height: 100%;
   background: transparent;
   overflow: hidden;
+  user-select: none;
   cursor: default;
+  -webkit-app-region: drag;
 }
 
 .stealth-viewer {
   position: absolute;
   inset: 0;
-  background: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.stealth-viewer :deep(iframe) {
-  border: 0;
-  background: transparent;
+.stealth-text {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 30px 18px 16px;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', SimSun, serif;
+  line-height: 1.76;
+  white-space: pre;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+.stealth-line {
+  display: block;
+  min-height: 1em;
+  white-space: pre;
+}
+
+.stealth-ch {
+  display: inline;
+}
+
+.stealth-toolbar {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 3px;
+  border-radius: 7px;
+  background: rgba(128, 128, 128, 0.14);
+  opacity: 0.28;
+  pointer-events: auto;
+  transition: opacity 0.18s var(--ease);
+  -webkit-app-region: no-drag;
+}
+
+.stealth-toolbar.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tool-button {
+  width: 21px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+.tool-button:hover {
+  background: rgba(128, 128, 128, 0.2);
+  opacity: 1;
+}
+
+.size-button {
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.tool-divider {
+  width: 1px;
+  height: 11px;
+  margin: 0 2px;
+  background: currentColor;
+  opacity: 0.25;
 }
 
 .drag-strip {
@@ -416,13 +666,26 @@ function wait(ms: number): Promise<void> {
   top: 0;
   left: 0;
   right: 0;
-  height: 12px;
+  height: 26px;
+  z-index: 7;
   cursor: grab;
-  z-index: 4;
 }
 
 .drag-strip:active {
   cursor: grabbing;
+}
+
+.drag-grip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 26px;
+  height: 3px;
+  margin-left: -13px;
+  border-radius: 2px;
+  background: currentColor;
+  color: #8a8a8a;
+  opacity: 0.28;
 }
 
 .stealth-loading {
@@ -432,52 +695,61 @@ function wait(ms: number): Promise<void> {
   place-items: center;
   font-size: 12px;
   letter-spacing: 0.08em;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
 }
 
 .resize-handle {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  z-index: 6;
+  right: 2px;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  z-index: 9;
   cursor: nwse-resize;
-  opacity: 0;
+  opacity: 0.35;
+  -webkit-app-region: no-drag;
 }
 
-.stealth-root:hover .resize-handle {
-  opacity: 0.45;
+.resize-handle:hover {
+  opacity: 0.8;
+}
+
+.resize-handle::before,
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  color: #8a8a8a;
 }
 
 .resize-handle::before {
-  content: '';
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  color: #7a7468;
+  width: 11px;
+  height: 11px;
+}
+
+.resize-handle::after {
+  width: 6px;
+  height: 6px;
 }
 
 .stealth-hint {
   position: absolute;
   right: 14px;
-  bottom: 4px;
-  font-size: 9.5px;
+  bottom: 3px;
+  font-size: 9px;
   letter-spacing: 0.04em;
   opacity: 0;
   transition: opacity 0.3s var(--ease);
   pointer-events: none;
   z-index: 5;
-  background: transparent;
 }
 
 .stealth-hint.visible {
-  opacity: 0.42;
+  opacity: 0.4;
 }
 
 .stealth-hint span {

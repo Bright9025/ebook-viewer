@@ -2,7 +2,6 @@ import type {
   AppSettings,
   Book,
   Bookmark,
-  BgSample,
   HotkeyStatus,
   ImportRequest,
   InitData,
@@ -10,7 +9,8 @@ import type {
   ReadingProgress,
   StealthContextPayload,
   StealthInitPayload,
-  ThemeMode
+  ThemeMode,
+  UnderlayCapture
 } from './types'
 
 export interface LibraryApi {
@@ -56,7 +56,7 @@ export interface StealthApi {
   ready(): void
   sendProgress(progress: ProgressPayload): void
   onInit(callback: (payload: StealthInitPayload) => void): () => void
-  onBackground(callback: (sample: BgSample) => void): () => void
+  onUnderlay(callback: (capture: UnderlayCapture) => void): () => void
 }
 
 export interface AppApi {

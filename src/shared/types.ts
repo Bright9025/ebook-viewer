@@ -82,6 +82,16 @@ export interface BgSample {
   luminance: number
 }
 
+export interface UnderlayCapture {
+  dataUrl: string
+  width: number
+  height: number
+  windowWidth: number
+  windowHeight: number
+  offsetX: number
+  offsetY: number
+}
+
 export interface ProgressPayload {
   bookId: string
   cfi: string

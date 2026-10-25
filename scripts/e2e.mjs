@@ -69,6 +69,8 @@ try {
   await page.waitForFunction(() => window.__ebookTest?.ready?.(), null, { timeout: 30000 })
   await page.waitForTimeout(900)
   console.log('reader loaded')
+  assert((await page.locator('button[title="最小化"]').count()) === 1, 'reader has a minimize button')
+  assert((await page.locator('button[title="关闭到托盘"]').count()) === 1, 'reader has a close button')
 
   const read = () =>
     page.evaluate(() => ({
@@ -99,10 +101,15 @@ try {
     await page.evaluate(([w, h]) => window.resizeTo(w, h), [width, height])
     await page.waitForTimeout(1400)
     const after = await read()
+    const layout = await page.evaluate(() => window.__ebookTest.layout())
     assert(after.anchor === before.anchor, `anchor CFI stable at ${width}x${height}`)
     assert(Math.abs(after.pct - before.pct) < 0.0001, `progress stable at ${width}x${height}`)
     assert(after.visible, `anchor still visible at ${width}x${height}`)
     assert(after.chapter === before.chapter, `chapter unchanged at ${width}x${height}`)
+    assert(
+      layout.settings && layout.viewer && Math.abs(layout.settings.width - layout.viewer[0]) <= 2,
+      `epub layout follows window width at ${width}x${height}`
+    )
   }
 
   const beforeNav = await read()
@@ -175,6 +182,19 @@ try {
     'ink contrast stays subtle'
   )
   assert(/^rgba\(/.test(stealthInfo.ink.color), 'ink color is translucent')
+  assert((await stealthPage.locator('.stealth-ch').count()) > 10, 'stealth renders per-character text')
+  assert((await stealthPage.locator('.stealth-toolbar .tool-button').count()) === 5, 'stealth toolbar has size/hide/close controls')
+  const inkColors = await stealthPage.evaluate(() =>
+    [...document.querySelectorAll('.stealth-ch')].slice(0, 30).map((node) => getComputedStyle(node).color)
+  )
+  assert(inkColors.length > 10 && inkColors.every(Boolean), 'every visible glyph receives an ink color')
+
+  await stealthPage.locator('button[title="小窗"]').click()
+  await sleep(700)
+  const smallWidth = await stealthPage.evaluate(() => window.innerWidth)
+  assert(smallWidth >= 418 && smallWidth <= 423, 'stealth size preset applies')
+  await stealthPage.locator('button[title="中窗"]').click()
+  await sleep(700)
 
   const beforeKey = await stealthPage.evaluate(() => window.__ebookTest.cfi())
   await stealthPage.evaluate(() => {

@@ -36,8 +36,11 @@ const panelTab = ref<'toc' | 'bookmarks'>('toc')
 const settingsOpen = ref(false)
 const chromeVisible = ref(true)
 const isFullscreen = ref(false)
+const maximized = ref(false)
 const locationsReady = ref(false)
 const draftReader = reactive<ReaderSettings>({ ...store.settings.reader })
+
+let offMaximized: (() => void) | null = null
 
 const sessionActive = ref(true)
 let resizeObserver: ResizeObserver | null = null
@@ -74,6 +77,11 @@ onMounted(async () => {
   window.addEventListener('focus', onWindowFocus)
   document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('beforeunload', saveProgress)
+  maximized.value = await window.api.window.isMaximized()
+  offMaximized = window.api.window.onMaximized((value) => {
+    maximized.value = value
+    isFullscreen.value = value
+  })
   await openBook()
   installResizeObserver()
 })
@@ -86,6 +94,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', onWindowFocus)
   document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('beforeunload', saveProgress)
+  offMaximized?.()
   resizeObserver?.disconnect()
   for (const timer of [resizeTimer, hideTimer, saveTimer, anchorTimer]) {
     if (timer) window.clearTimeout(timer)
@@ -190,8 +199,12 @@ async function restoreAfterResize(): Promise<void> {
   try {
     // Numeric width/height keeps epub.js from running its own window-resize
     // pass; we pass the anchor CFI directly so the reflow lands on our page.
-    const resizeWithAnchor = instance.resize as unknown as (width: number, height: number, cfi?: string) => void
-    resizeWithAnchor(width, height, current?.cfi)
+    // Keep `this` bound to the rendition: extracting the method loses it.
+    ;(instance as unknown as { resize(width: number, height: number, cfi?: string): void }).resize(
+      width,
+      height,
+      current?.cfi
+    )
     await wait(260)
     if (current && !isAnchorAtTop(instance, current.cfi)) {
       try {
@@ -290,7 +303,7 @@ function applyReaderTheme(): void {
       'font-family': `${readerFontStacks[settings.font]} !important`,
       'font-size': `${settings.fontSize}px !important`,
       'line-height': `${settings.lineHeight} !important`,
-      padding: `72px ${settings.margin}px 56px !important`,
+      padding: `72px ${settings.margin}px 80px !important`,
       'text-align': settings.justify ? 'justify' : 'left',
       hyphens: 'auto',
       'box-sizing': 'border-box'
@@ -466,6 +479,19 @@ function toggleFullscreen(): void {
   window.api.window.setFullScreen(isFullscreen.value)
 }
 
+function minimizeWindow(): void {
+  window.api.window.minimize()
+}
+
+function toggleMaximizeWindow(): void {
+  window.api.window.toggleMaximize()
+}
+
+function closeWindow(): void {
+  saveProgress()
+  window.api.window.close()
+}
+
 function openPanel(tab: 'toc' | 'bookmarks'): void {
   if (panelOpen.value && panelTab.value === tab) {
     panelOpen.value = false
@@ -629,6 +655,15 @@ function installTestHooks(): void {
     topCfi: () => collectTopAnchor(rendition.value)?.cfi ?? '',
     anchorCfi: () => anchor.value?.cfi ?? '',
     anchorVisible: () => (anchor.value ? isAnchorVisible(rendition.value, anchor.value.cfi) : false),
+    layout: () => {
+      const instance = rendition.value as any
+      const iframe = viewerEl.value?.querySelector('iframe') as HTMLIFrameElement | null
+      return {
+        settings: instance ? { width: instance.settings?.width, height: instance.settings?.height } : null,
+        viewer: viewerEl.value ? [viewerEl.value.clientWidth, viewerEl.value.clientHeight] : null,
+        iframe: iframe ? [iframe.getBoundingClientRect().width, iframe.getBoundingClientRect().height] : null
+      }
+    },
     currentCfi: () => ((rendition.value?.currentLocation() as any)?.start?.cfi ?? '') as string,
     chapter: () => chapterTitle.value,
     percent: () => percent.value,
@@ -685,21 +720,31 @@ function wait(ms: number): Promise<void> {
           <AppIcon name="bookmark" :size="17" />
           <span v-if="bookmarks.length" class="dot" />
         </button>
-        <button class="chrome-button" :class="{ active: isBookmarked }" type="button" title="标记当前页" @click="toggleBookmark">
+        <button class="chrome-button reader-optional" :class="{ active: isBookmarked }" type="button" title="标记当前页" @click="toggleBookmark">
           <AppIcon name="bookmark-plus" :size="17" />
         </button>
         <span class="action-divider" />
         <button class="chrome-button" type="button" title="排版" @click="settingsOpen = true; keepChrome()">
           <AppIcon name="type" :size="18" />
         </button>
-        <button class="chrome-button" type="button" :title="store.theme === 'dark' ? '明亮模式' : '暗黑模式'" @click="toggleTheme">
+        <button class="chrome-button reader-optional" type="button" :title="store.theme === 'dark' ? '明亮模式' : '暗黑模式'" @click="toggleTheme">
           <AppIcon :name="store.theme === 'dark' ? 'sun' : 'moon'" :size="17" />
         </button>
         <button class="chrome-button stealth-button" :class="{ active: store.stealthVisible }" type="button" title="摸鱼模式" @click="toggleStealth">
           <AppIcon name="ghost" :size="18" />
         </button>
-        <button class="chrome-button" type="button" :title="isFullscreen ? '退出全屏' : '全屏'" @click="toggleFullscreen">
+        <button class="chrome-button reader-optional" type="button" :title="isFullscreen ? '退出全屏' : '全屏'" @click="toggleFullscreen">
           <AppIcon :name="isFullscreen ? 'shrink' : 'expand'" :size="17" />
+        </button>
+        <span class="action-divider" />
+        <button class="chrome-button" type="button" title="最小化" @click="minimizeWindow">
+          <AppIcon name="minus" :size="17" />
+        </button>
+        <button class="chrome-button" type="button" :title="maximized ? '还原' : '最大化'" @click="toggleMaximizeWindow">
+          <AppIcon :name="maximized ? 'restore' : 'maximize'" :size="14" />
+        </button>
+        <button class="chrome-button window-close" type="button" title="关闭到托盘" @click="closeWindow">
+          <AppIcon name="close" :size="17" />
         </button>
       </div>
     </div>
@@ -831,6 +876,18 @@ function wait(ms: number): Promise<void> {
 .chrome-button.active {
   opacity: 1;
   color: var(--accent);
+}
+
+.chrome-button.window-close:hover {
+  background: #c7392c;
+  color: #fff;
+  opacity: 1;
+}
+
+@media (max-width: 860px) {
+  .reader-optional {
+    display: none;
+  }
 }
 
 .chrome-button .dot {

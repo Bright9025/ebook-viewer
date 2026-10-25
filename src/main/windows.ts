@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { BgSample, StealthContextPayload, StealthInitPayload } from '../shared/types'
 import { APP_ICON_DATA_URL } from './icon-data'
 import { getStore } from './store'
-import { sampleBackground } from './capture'
+import { captureUnderlay } from './capture'
 
 let mainWindow: BrowserWindow | null = null
 let stealthWindow: BrowserWindow | null = null
@@ -166,7 +166,7 @@ function createStealthWindow(): BrowserWindow {
     transparent: true,
     backgroundColor: '#00000000',
     hasShadow: false,
-    resizable: false,
+    resizable: true,
     movable: true,
     minimizable: false,
     maximizable: false,
@@ -226,7 +226,7 @@ function createStealthWindow(): BrowserWindow {
       storeNow.settings.stealth.x = bounds.x
       storeNow.settings.stealth.y = bounds.y
       storeNow.saveSoon()
-      void refreshStealthBackground(false)
+      void refreshStealthUnderlay()
     }, 300)
   })
 
@@ -269,6 +269,7 @@ export function setStealthSize(width: number, height: number): void {
   store.settings.stealth.width = w
   store.settings.stealth.height = h
   store.saveSoon()
+  setTimeout(() => void refreshStealthUnderlay(), 220)
 }
 
 export function toggleBoss(): void {
@@ -347,10 +348,10 @@ function ensureOnScreen(win: BrowserWindow): void {
 
 function startSampling(): void {
   stopSampling()
-  void refreshStealthBackground(true)
+  void refreshStealthUnderlay()
   sampleTimer = setInterval(() => {
-    void refreshStealthBackground(false)
-  }, 3000)
+    void refreshStealthUnderlay()
+  }, 2000)
 }
 
 function stopSampling(): void {
@@ -360,14 +361,12 @@ function stopSampling(): void {
   }
 }
 
-async function refreshStealthBackground(hiddenSample: boolean): Promise<void> {
+async function refreshStealthUnderlay(): Promise<void> {
   if (!stealthWindow || stealthWindow.isDestroyed()) return
-  const visible = stealthWindow.isVisible()
-  if (hiddenSample && visible) hiddenSample = false
   const bounds = stealthWindow.getBounds()
-  const sample = await sampleBackground(bounds, hiddenSample)
-  if (!sample || !stealthWindow || stealthWindow.isDestroyed()) return
-  stealthWindow.webContents.send('stealth:background', sample)
+  const underlay = await captureUnderlay(bounds)
+  if (!underlay || !stealthWindow || stealthWindow.isDestroyed()) return
+  stealthWindow.webContents.send('stealth:underlay', underlay)
 }
 
 function clamp(value: number, min: number, max: number): number {

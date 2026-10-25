@@ -3,14 +3,14 @@ import type { Api } from '../shared/api'
 import type {
   AppSettings,
   Book,
-  BgSample,
   HotkeyStatus,
   InitData,
   ProgressPayload,
   ReadingProgress,
   StealthContextPayload,
   StealthInitPayload,
-  ThemeMode
+  ThemeMode,
+  UnderlayCapture
 } from '../shared/types'
 
 function on<T>(channel: string) {
@@ -60,7 +60,7 @@ const api: Api = {
     ready: () => ipcRenderer.send('stealth:ready'),
     sendProgress: (progress) => ipcRenderer.send('stealth:progress', progress),
     onInit: on<StealthInitPayload>('stealth:init'),
-    onBackground: on<BgSample>('stealth:background')
+    onUnderlay: on<UnderlayCapture>('stealth:underlay')
   },
   app: {
     version: () => ipcRenderer.invoke('app:version') as Promise<string>,
