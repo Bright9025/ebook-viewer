@@ -1,0 +1,33 @@
+appId: com.ebookviewer.app
+productName: Ebook Viewer
+copyright: Copyright © 2026
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**/*
+  - package.json
+  - resources/icon.png
+extraFiles:
+  - from: resources/launch-no-sandbox.cmd
+    to: 启动 Ebook Viewer.cmd
+  - from: resources/EbookViewerLauncher.exe
+    to: Ebook Viewer.exe
+asar: true
+compression: normal
+npmRebuild: false
+win:
+  executableName: EbookViewerCore
+  icon: resources/icon.ico
+  target:
+    - target: dir
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Ebook Viewer

@@ -1,0 +1,17 @@
+node_modules/
+out/
+release/
+dist/
+.vite/
+test-results/
+playwright-report/
+.tmp-e2e/
+.testdata/
+.data/
+.probe/
+.probe38/
+.imgprobe/
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db

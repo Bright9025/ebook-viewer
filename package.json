@@ -1,0 +1,38 @@
+{
+  "name": "ebook-viewer",
+  "version": "0.1.0",
+  "description": "A focused EPUB reader with light/dark themes and a stealth reading overlay.",
+  "main": "./out/main/index.js",
+  "author": "ebook-viewer",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/electron-vite.mjs dev --noSandbox",
+    "dev:secure": "node scripts/electron-vite.mjs dev",
+    "build": "electron-vite build",
+    "start": "node scripts/electron-vite.mjs preview --noSandbox",
+    "start:secure": "node scripts/electron-vite.mjs preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test:e2e": "npm run build && node scripts/e2e.mjs",
+    "pack": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder --win nsis",
+    "postinstall": "node scripts/ensure-electron.cjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.9.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "electron": "33.4.11",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^5.0.0",
+    "epubjs": "^0.3.93",
+    "pinia": "^3.0.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.7",
+    "vue": "^3.5.44",
+    "vue-router": "^4.6.4",
+    "vue-tsc": "^3.3.13"
+  }
+}
