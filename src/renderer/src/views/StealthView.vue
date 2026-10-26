@@ -604,7 +604,6 @@ function wait(ms: number): Promise<void> {
   overflow: hidden;
   user-select: none;
   cursor: default;
-  -webkit-app-region: drag;
 }
 
 .stealth-viewer {
@@ -660,6 +659,11 @@ function wait(ms: number): Promise<void> {
   pointer-events: auto;
 }
 
+.stealth-toolbar,
+.stealth-toolbar * {
+  -webkit-app-region: no-drag;
+}
+
 .tool-button {
   width: 21px;
   height: 18px;
@@ -669,6 +673,7 @@ function wait(ms: number): Promise<void> {
   font-size: 9px;
   letter-spacing: 0.02em;
   opacity: 0.8;
+  pointer-events: auto;
 }
 
 .tool-button:hover {
