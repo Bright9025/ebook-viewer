@@ -50,6 +50,9 @@ let lineTexts: string[] = []
 let lastInk: InkStyle = fallbackInk.value
 let applyingRemote = false
 let sendTimer: number | null = null
+let refreshTimer: number | null = null
+let refreshSeq = 0
+let suppressRefreshUntil = 0
 let hintTimer: number | null = null
 let resizeTimer: number | null = null
 let recolorFrame = 0
@@ -92,6 +95,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('pointerup', clearResize)
   if (recolorFrame) cancelAnimationFrame(recolorFrame)
+  if (refreshTimer) window.clearTimeout(refreshTimer)
   document.body.classList.remove('stealth-body')
   document.documentElement.style.background = ''
   try {
@@ -174,8 +178,16 @@ async function displayCfi(cfi: string): Promise<void> {
 
 function onRelocated(): void {
   if (applyingRemote) return
-  void refreshPageText()
+  if (Date.now() >= suppressRefreshUntil) schedulePageRefresh()
   scheduleSend()
+}
+
+function schedulePageRefresh(delay = 70): void {
+  if (refreshTimer) window.clearTimeout(refreshTimer)
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null
+    void refreshPageText()
+  }, delay)
 }
 
 function scheduleSend(): void {
@@ -233,14 +245,22 @@ async function applyRemote(cfi: string): Promise<void> {
 async function refreshPageText(): Promise<void> {
   const instance = rendition.value
   if (!instance) return
+  const seq = ++refreshSeq
   const list = instance.getContents() as unknown as Array<{ document?: Document }>
   for (const item of list) {
     if (item?.document) injectHiddenStyle(item.document)
   }
   await wait(60)
+  if (seq !== refreshSeq) return
   lineTexts = extractPageLines(instance)
+  const layer = textLayer.value
+  if (!layer) return
+  // Build, colour and swap inside one task: the browser never paints a blank
+  // or fallback-coloured frame between pages.
+  layer.style.visibility = 'hidden'
   renderTextLayer()
-  requestAnimationFrame(() => colorize())
+  colorizeNow()
+  layer.style.visibility = ''
 }
 
 /** Match the hidden EPUB page to the visible text layer so line breaks agree. */
@@ -272,10 +292,11 @@ function injectHiddenStyle(doc: Document): void {
 function renderTextLayer(): void {
   const layer = textLayer.value
   if (!layer) return
-  layer.textContent = ''
   charSpans = []
+  const fragment = document.createDocumentFragment()
   if (!lineTexts.length) {
-    layer.textContent = loading.value ? '正在展开…' : '（本页没有可显示的文字）'
+    fragment.appendChild(document.createTextNode(loading.value ? '正在展开…' : '（本页没有可显示的文字）'))
+    layer.replaceChildren(fragment)
     return
   }
   for (const line of lineTexts) {
@@ -292,8 +313,9 @@ function renderTextLayer(): void {
       row.appendChild(span)
       charSpans.push(span)
     }
-    layer.appendChild(row)
+    fragment.appendChild(row)
   }
+  layer.replaceChildren(fragment)
 }
 
 async function applyUnderlay(capture: UnderlayCapture): Promise<void> {
@@ -326,70 +348,75 @@ function colorize(): void {
   if (recolorFrame) cancelAnimationFrame(recolorFrame)
   recolorFrame = requestAnimationFrame(() => {
     recolorFrame = 0
-    const layer = textLayer.value
-    if (!layer || !charSpans.length) return
-    if (!underlay) {
-      applyFallbackInk()
-      return
-    }
-    const { data, width, height, windowWidth, windowHeight, offsetX, offsetY } = underlay
-    const pixels = data.data
-    const sx = width / Math.max(1, windowWidth)
-    const sy = height / Math.max(1, windowHeight)
-    let contrastSum = 0
-    let count = 0
-    for (const span of charSpans) {
-      const rect = span.getBoundingClientRect()
-      const row = span.parentElement
-      if (rect.bottom < 0 || rect.top > window.innerHeight || rect.width <= 0 || !row) continue
-      const rowRect = row.getBoundingClientRect()
-      // Sample the leading between lines rather than the glyph itself: the
-      // overlay's own text is part of the screen capture, and sampling a glyph
-      // would feed its color back into the next iteration. The vertical gaps
-      // between lines are pure background at the glyph's own x position.
-      const candidates = [
-        { x: rect.left + rect.width / 2, y: rowRect.top - 6 },
-        { x: rect.left + rect.width / 2, y: rowRect.top - 3 },
-        { x: rect.left + rect.width / 2, y: rowRect.bottom + 3 },
-        { x: rect.left + rect.width / 2, y: rowRect.bottom + 6 }
-      ]
-      let r = 0
-      let g = 0
-      let b = 0
-      let n = 0
-      for (const point of candidates) {
-        const x = Math.round((point.x + offsetX) * sx)
-        const y = Math.round((point.y + offsetY) * sy)
-        if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) continue
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const index = ((y + dy) * width + (x + dx)) * 4
-            r += pixels[index]
-            g += pixels[index + 1]
-            b += pixels[index + 2]
-            n++
-          }
+    colorizeNow()
+  })
+}
+
+function colorizeNow(): void {
+  const layer = textLayer.value
+  if (!layer || !charSpans.length) return
+  if (!underlay) {
+    applyFallbackInk()
+    return
+  }
+  const { data, width, height, windowWidth, windowHeight, offsetX, offsetY } = underlay
+  const pixels = data.data
+  const sx = width / Math.max(1, windowWidth)
+  const sy = height / Math.max(1, windowHeight)
+  let contrastSum = 0
+  let count = 0
+  for (const span of charSpans) {
+    const rect = span.getBoundingClientRect()
+    const row = span.parentElement
+    if (rect.bottom < 0 || rect.top > window.innerHeight || rect.width <= 0 || !row) continue
+    const rowRect = row.getBoundingClientRect()
+    // Sample the leading between lines rather than the glyph itself: the
+    // overlay's own text is part of the screen capture, and sampling a glyph
+    // would feed its color back into the next iteration. The vertical gaps
+    // between lines are pure background at the glyph's own x position.
+    const candidates = [
+      { x: rect.left + rect.width / 2, y: rowRect.top - 6 },
+      { x: rect.left + rect.width / 2, y: rowRect.top - 3 },
+      { x: rect.left + rect.width / 2, y: rowRect.bottom + 3 },
+      { x: rect.left + rect.width / 2, y: rowRect.bottom + 6 }
+    ]
+    let r = 0
+    let g = 0
+    let b = 0
+    let n = 0
+    for (const point of candidates) {
+      const x = Math.round((point.x + offsetX) * sx)
+      const y = Math.round((point.y + offsetY) * sy)
+      if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) continue
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const index = ((y + dy) * width + (x + dx)) * 4
+          r += pixels[index]
+          g += pixels[index + 1]
+          b += pixels[index + 2]
+          n++
         }
       }
-      if (!n) continue
-      const bg = { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) }
-      const ink = inkForBackground({ ...bg, luminance: 0 }, settings.value.opacity)
-      span.style.color = ink.color
-      span.style.textShadow = ink.shadow
-      contrastSum += ink.contrast
-      count++
-      if (count === 1) {
-        uiColor.value = `rgba(${bg.r}, ${bg.g}, ${bg.b}, 0.9)`
-      }
     }
-    if (count) {
-      lastInk = {
-        color: charSpans[0]?.style.color || fallbackInk.value.color,
-        shadow: charSpans[0]?.style.textShadow || fallbackInk.value.shadow,
-        contrast: Math.round((contrastSum / count) * 100) / 100
-      }
+    if (!n) continue
+    const bg = { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) }
+    const ink = inkForBackground({ ...bg, luminance: 0 }, settings.value.opacity)
+    span.style.color = ink.color
+    span.style.textShadow = ink.shadow
+    contrastSum += ink.contrast
+    count++
+    if (count === 1) {
+      const luminance = (0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b) / 255
+      uiColor.value = luminance > 0.55 ? 'rgba(52, 50, 46, 0.82)' : 'rgba(232, 230, 224, 0.82)'
     }
-  })
+  }
+  if (count) {
+    lastInk = {
+      color: charSpans[0]?.style.color || fallbackInk.value.color,
+      shadow: charSpans[0]?.style.textShadow || fallbackInk.value.shadow,
+      contrast: Math.round((contrastSum / count) * 100) / 100
+    }
+  }
 }
 
 function applyFallbackInk(): void {
@@ -445,10 +472,11 @@ async function page(direction: 'next' | 'prev'): Promise<void> {
   const instance = rendition.value
   if (!instance) return
   try {
+    suppressRefreshUntil = Date.now() + 500
     if (direction === 'next') await instance.next()
     else await instance.prev()
-    await wait(140)
-    await refreshPageText()
+    schedulePageRefresh(80)
+    await wait(240)
   } catch (error) {
     console.warn('[stealth] page turn failed', error)
   }
@@ -620,8 +648,8 @@ function wait(ms: number): Promise<void> {
   gap: 1px;
   padding: 2px 3px;
   border-radius: 7px;
-  background: rgba(128, 128, 128, 0.14);
-  opacity: 0.28;
+  background: rgba(128, 128, 128, 0.2);
+  opacity: 0.62;
   pointer-events: auto;
   transition: opacity 0.18s var(--ease);
   -webkit-app-region: no-drag;
