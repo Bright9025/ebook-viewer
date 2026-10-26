@@ -490,10 +490,6 @@ function onWindowResize(): void {
   }, 360)
 }
 
-function setPreset(width: number, height: number): void {
-  window.api.stealth.setSize(width, height)
-}
-
 function hideStealth(): void {
   window.api.stealth.hide()
 }
@@ -568,15 +564,11 @@ function wait(ms: number): Promise<void> {
     <div ref="textLayer" class="stealth-text" :style="{ fontSize: `${fontSize}px`, color: fallbackInk.color }" />
 
     <div class="stealth-toolbar no-drag" :class="{ visible: hovered }" :style="{ color: uiColor }">
-      <button class="tool-button size-button" type="button" title="小窗" @click="setPreset(420, 110)">S</button>
-      <button class="tool-button size-button" type="button" title="中窗" @click="setPreset(560, 168)">M</button>
-      <button class="tool-button size-button" type="button" title="大窗" @click="setPreset(720, 220)">L</button>
-      <span class="tool-divider" />
       <button class="tool-button" type="button" title="隐藏（Esc / Ctrl+Shift+H）" @click="hideStealth">
-        <AppIcon name="eye-off" :size="14" />
+        <AppIcon name="eye-off" :size="15" />
       </button>
       <button class="tool-button" type="button" title="退出摸鱼模式" @click="exitStealth">
-        <AppIcon name="close" :size="14" />
+        <AppIcon name="close" :size="15" />
       </button>
     </div>
 
@@ -639,16 +631,16 @@ function wait(ms: number): Promise<void> {
 
 .stealth-toolbar {
   position: absolute;
-  top: 5px;
-  right: 6px;
+  top: 4px;
+  right: 8px;
   z-index: 8;
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   padding: 2px 3px;
   border-radius: 7px;
-  background: rgba(128, 128, 128, 0.2);
-  opacity: 0.62;
+  background: rgba(128, 128, 128, 0.24);
+  opacity: 0.7;
   pointer-events: auto;
   transition: opacity 0.18s var(--ease);
   -webkit-app-region: no-drag;
@@ -665,14 +657,14 @@ function wait(ms: number): Promise<void> {
 }
 
 .tool-button {
-  width: 21px;
-  height: 18px;
+  width: 26px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 5px;
   font-size: 9px;
   letter-spacing: 0.02em;
-  opacity: 0.8;
+  opacity: 0.85;
   pointer-events: auto;
 }
 
@@ -681,24 +673,11 @@ function wait(ms: number): Promise<void> {
   opacity: 1;
 }
 
-.size-button {
-  font-family: var(--font-ui);
-  font-weight: 600;
-}
-
-.tool-divider {
-  width: 1px;
-  height: 11px;
-  margin: 0 2px;
-  background: currentColor;
-  opacity: 0.25;
-}
-
 .drag-strip {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  right: 92px;
   height: 26px;
   z-index: 7;
   cursor: grab;

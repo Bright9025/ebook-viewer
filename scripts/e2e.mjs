@@ -183,18 +183,11 @@ try {
   )
   assert(/^rgba\(/.test(stealthInfo.ink.color), 'ink color is translucent')
   assert((await stealthPage.locator('.stealth-ch').count()) > 10, 'stealth renders per-character text')
-  assert((await stealthPage.locator('.stealth-toolbar .tool-button').count()) === 5, 'stealth toolbar has size/hide/close controls')
+  assert((await stealthPage.locator('.stealth-toolbar .tool-button').count()) === 2, 'stealth toolbar has hide/close controls')
   const inkColors = await stealthPage.evaluate(() =>
     [...document.querySelectorAll('.stealth-ch')].slice(0, 30).map((node) => getComputedStyle(node).color)
   )
   assert(inkColors.length > 10 && inkColors.every(Boolean), 'every visible glyph receives an ink color')
-
-  await stealthPage.locator('button[title="小窗"]').click()
-  await sleep(700)
-  const smallWidth = await stealthPage.evaluate(() => window.innerWidth)
-  assert(smallWidth >= 418 && smallWidth <= 423, 'stealth size preset applies')
-  await stealthPage.locator('button[title="中窗"]').click()
-  await sleep(700)
 
   const beforeKey = await stealthPage.evaluate(() => window.__ebookTest.cfi())
   await stealthPage.evaluate(() => {
