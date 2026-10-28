@@ -15,7 +15,7 @@ let bossHidden = false
 let lastShown: 'main' | 'stealth' = 'main'
 let quitting = false
 
-export const iconPath = join(__dirname, '../../resources/icon.png')
+export const iconPath = join(__dirname, '../../resources/icons/icon.png')
 export const appIcon = nativeImage.createFromDataURL(APP_ICON_DATA_URL)
 
 export function setQuitting(value: boolean): void {

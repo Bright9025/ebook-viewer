@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
 
-const root = path.resolve(__dirname, '..')
+const root = path.resolve(__dirname, '..', '..')
 const electronDir = path.join(root, 'node_modules', 'electron')
 const marker = path.join(electronDir, 'path.txt')
 const installer = path.join(electronDir, 'install.js')

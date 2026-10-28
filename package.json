@@ -3,21 +3,21 @@
   "version": "0.1.0",
   "description": "A focused EPUB reader with light/dark themes and a stealth reading overlay.",
   "main": "./out/main/index.js",
-  "author": "ebook-viewer",
+  "author": "Bright9025",
   "license": "MIT",
   "scripts": {
-    "dev": "node scripts/electron-vite.mjs dev --noSandbox",
-    "dev:secure": "node scripts/electron-vite.mjs dev",
+    "dev": "node scripts/dev/electron-vite.mjs dev --noSandbox",
+    "dev:secure": "node scripts/dev/electron-vite.mjs dev",
     "build": "electron-vite build",
-    "start": "node scripts/electron-vite.mjs preview --noSandbox",
-    "start:secure": "node scripts/electron-vite.mjs preview",
+    "start": "node scripts/dev/electron-vite.mjs preview --noSandbox",
+    "start:secure": "node scripts/dev/electron-vite.mjs preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "test:e2e": "npm run build && node scripts/e2e.mjs",
+    "test:e2e": "npm run build && node scripts/test/e2e.mjs",
     "pack": "npm run build && electron-builder --win --dir",
     "dist": "npm run build && electron-builder --win nsis",
-    "postinstall": "node scripts/ensure-electron.cjs"
+    "postinstall": "node scripts/setup/ensure-electron.cjs"
   },
   "dependencies": {},
   "devDependencies": {

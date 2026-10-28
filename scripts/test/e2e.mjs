@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test'
 
 const require = createRequire(import.meta.url)
 const electronPath = require('electron')
-const root = resolve(import.meta.dirname, '..')
+const root = resolve(import.meta.dirname, '..', '..')
 const userData = join(root, '.tmp-e2e', `run-${Date.now()}`)
 const port = 9471
 const sample = join(root, 'samples', '山窗读书记.epub')
