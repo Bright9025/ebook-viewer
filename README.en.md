@@ -6,6 +6,8 @@
 
 A focused local EPUB reader with a library, table of contents, bookmarks, light/dark themes, and a transparent always-on-top “stealth” reading window that adapts to the desktop behind it.
 
+> Current version: **v1.0.1** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+
 </div>
 
 ## ✨ Features
@@ -18,17 +20,32 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 - ⌨️ **Global shortcuts** – Show/hide everything or toggle stealth mode from anywhere; arrow keys turn pages in the stealth window.
 - 🧰 **Tray resident** – Closing the main window keeps the app in the tray. EPUB files are never modified.
 
+## 🧱 Tech Stack
+
+| Technology | Purpose |
+| --- | --- |
+| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | Type safety |
+| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | Desktop runtime and main-process APIs |
+| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | Renderer UI |
+| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | Front-end bundling |
+| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | Unified main / preload / renderer builds |
+| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | Library, settings and stealth state |
+| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | Library / reader / stealth routes |
+| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB parsing, CFIs and pagination |
+| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows packaging and installer |
+| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | End-to-end smoke tests |
+
 ## 🖼️ Screenshots
 
 | Library | Reader · light |
 | --- | --- |
-| ![Library](./screenshots/library.png) | ![Reader · light](./screenshots/reader-light.png) |
+| ![Library](./docs/screenshots/library.png) | ![Reader · light](./docs/screenshots/reader-light.png) |
 
 | Reader · dark | Typography settings |
 | --- | --- |
-| ![Reader · dark](./screenshots/reader-dark.png) | ![Typography settings](./screenshots/reader-settings.png) |
+| ![Reader · dark](./docs/screenshots/reader-dark.png) | ![Typography settings](./docs/screenshots/reader-settings.png) |
 
-![Stealth mode](./screenshots/stealth-preview.png)
+![Stealth mode](./docs/screenshots/stealth-preview.png)
 
 > The stealth window is transparent and always on top. The preview above shows the transparent page over a light background; the actual text color changes with the desktop underneath.
 
@@ -36,11 +53,8 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 
 ```text
 ebook-viewer/
-├── docs/                         # Documentation, screenshots and license
-│   ├── README.md                 # Chinese documentation
-│   ├── README.en.md              # English documentation (this file)
-│   ├── LICENSE                   # MIT License
-│   └── screenshots/              # UI screenshots
+├── docs/
+│   └── screenshots/              # UI screenshots referenced by the READMEs
 ├── resources/
 │   ├── icons/                    # App, tray and installer icons
 │   └── launcher/                 # Windows launcher source and binary
@@ -54,11 +68,22 @@ ebook-viewer/
 │   ├── preload/                  # contextBridge API
 │   ├── renderer/                 # Vue 3 UI
 │   └── shared/                   # Shared types and defaults
-├── electron-builder.yml
-├── electron.vite.config.ts
+├── .gitignore
+├── .npmrc                        # Electron download mirror
+├── LICENSE                       # MIT License
+├── CONTRIBUTING.md               # Contribution guide
+├── README.md                     # Chinese documentation
+├── README.en.md                  # English documentation (this file)
+├── electron-builder.yml          # Windows packaging config
+├── electron.vite.config.ts       # main / preload / renderer build config
 ├── package.json
-└── README.md                     # Repository entry (links to docs)
+├── package-lock.json             # Locked dependency versions
+├── tsconfig.json                 # TypeScript project references
+├── tsconfig.node.json            # Main / preload / shared typecheck
+└── tsconfig.web.json             # Renderer typecheck
 ```
+
+`out/` and `release/` are local build artifacts and are ignored by `.gitignore`; they are not committed.
 
 ## 🚀 Quick Start
 
@@ -97,6 +122,24 @@ npm run dist         # Produce an NSIS installer (requires extra packaging compo
 The double-click entry in `release/win-unpacked` is **`Ebook Viewer.exe`**, a tiny launcher that starts **`EbookViewerCore.exe`** (the Electron app) with `--no-sandbox`. Keep the whole directory together; do not copy just one of the two executables.
 
 `启动 Ebook Viewer.cmd` is an equivalent command-line entry.
+
+The packaged `release/` directory looks like this:
+
+```text
+release/
+├── win-unpacked/                 # Portable build
+│   ├── Ebook Viewer.exe          # Double-click launcher
+│   ├── EbookViewerCore.exe       # Electron app
+│   ├── 启动 Ebook Viewer.cmd
+│   └── data/                     # Created on first run
+├── Ebook Viewer-1.0.1-x64.exe    # NSIS installer
+├── Ebook Viewer-1.0.1-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.1-x64-portable.zip
+├── latest.yml
+└── builder-debug.yml             # electron-builder debug info (ignored)
+```
+
+For a GitHub Release, upload `Ebook Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0.1-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
@@ -175,7 +218,7 @@ This project is released under the [MIT License](./LICENSE). You are free to use
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. Before submitting, run:
+Issues and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development, commit and testing workflow. Before submitting, run:
 
 ```bash
 npm run typecheck

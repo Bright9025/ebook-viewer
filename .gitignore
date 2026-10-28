@@ -5,6 +5,7 @@ dist/
 .vite/
 test-results/
 playwright-report/
+coverage/
 .tmp-e2e/
 .testdata/
 .data/
@@ -13,5 +14,12 @@ playwright-report/
 .imgprobe/
 *.log
 *.tsbuildinfo
+*.zip
+*.7z
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db

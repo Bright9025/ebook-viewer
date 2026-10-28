@@ -6,6 +6,8 @@
 
 一个专注阅读本身的本地 EPUB 阅读器：书库、目录、书签、明亮 / 暗黑主题，以及一个可以随时呼出、随桌面颜色隐身的「摸鱼模式」。
 
+> 当前版本：**v1.0.1** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+
 </div>
 
 ## ✨ 功能特点
@@ -18,17 +20,32 @@
 - ⌨️ **全局快捷键** – 一键隐藏 / 恢复、开关摸鱼模式；摸鱼窗内左右键翻页。
 - 🧰 **托盘常驻** – 关闭主窗口不退出，可从托盘恢复；EPUB 文件不会被修改。
 
+## 🧱 技术栈
+
+| 技术 | 用途 |
+| --- | --- |
+| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | 类型安全 |
+| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | 桌面应用运行时与主进程能力 |
+| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | 渲染进程界面 |
+| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | 前端构建 |
+| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | main / preload / renderer 一体化开发构建 |
+| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | 书库、设置、摸鱼状态管理 |
+| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | 书库 / 阅读器 / 摸鱼窗路由 |
+| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB 解析、CFI 与横向分页 |
+| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows 打包与安装包 |
+| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | 端到端冒烟测试 |
+
 ## 🖼️ 界面
 
 | 书库 | 阅读 · 明亮 |
 | --- | --- |
-| ![书库](./screenshots/library.png) | ![阅读 · 明亮](./screenshots/reader-light.png) |
+| ![书库](./docs/screenshots/library.png) | ![阅读 · 明亮](./docs/screenshots/reader-light.png) |
 
 | 阅读 · 暗黑 | 排版设置 |
 | --- | --- |
-| ![阅读 · 暗黑](./screenshots/reader-dark.png) | ![排版设置](./screenshots/reader-settings.png) |
+| ![阅读 · 暗黑](./docs/screenshots/reader-dark.png) | ![排版设置](./docs/screenshots/reader-settings.png) |
 
-![摸鱼模式](./screenshots/stealth-preview.png)
+![摸鱼模式](./docs/screenshots/stealth-preview.png)
 
 > 摸鱼窗是透明置顶的小窗，上图为透明页面叠在浅色背景上的预览；文字颜色会随窗口下方的桌面颜色变化。
 
@@ -36,11 +53,8 @@
 
 ```text
 ebook-viewer/
-├── docs/                         # 项目文档、截图与许可证
-│   ├── README.md                 # 中文说明（本文件）
-│   ├── README.en.md              # 英文说明
-│   ├── LICENSE                   # MIT License
-│   └── screenshots/              # 界面截图
+├── docs/
+│   └── screenshots/              # 界面截图（README 引用）
 ├── resources/
 │   ├── icons/                    # 应用、托盘、安装包图标
 │   └── launcher/                 # Windows 启动器源码与二进制
@@ -54,11 +68,22 @@ ebook-viewer/
 │   ├── preload/                  # contextBridge API
 │   ├── renderer/                 # Vue 3 界面
 │   └── shared/                   # 主进程 / 渲染进程共享类型与默认值
-├── electron-builder.yml
-├── electron.vite.config.ts
+├── .gitignore
+├── .npmrc                        # Electron 下载镜像
+├── LICENSE                       # MIT License
+├── CONTRIBUTING.md               # 贡献指南
+├── README.md                     # 中文说明（本文件）
+├── README.en.md                  # 英文说明
+├── electron-builder.yml          # Windows 打包配置
+├── electron.vite.config.ts       # main / preload / renderer 构建配置
 ├── package.json
-└── README.md                     # 仓库入口（链接到 docs）
+├── package-lock.json             # 锁定依赖版本
+├── tsconfig.json                 # TypeScript 工程引用入口
+├── tsconfig.node.json            # main / preload / shared 类型检查
+└── tsconfig.web.json             # renderer 类型检查
 ```
+
+构建和打包生成的 `out/`、`release/` 属于本地产物，已在 `.gitignore` 中忽略，不会提交到仓库。
 
 ## 🚀 快速开始
 
@@ -97,6 +122,24 @@ npm run dist         # 生成 NSIS 安装包（需要额外打包组件）
 `release/win-unpacked` 里的双击入口是 **`Ebook Viewer.exe`**：它是一个小启动器，会带 `--no-sandbox` 拉起同目录的 **`EbookViewerCore.exe`**（Electron 主体）。不要只复制其中一个文件，整个目录一起使用。
 
 `启动 Ebook Viewer.cmd` 是等价的命令行入口。
+
+打包后的 `release/` 目录结构：
+
+```text
+release/
+├── win-unpacked/                 # 便携版目录
+│   ├── Ebook Viewer.exe          # 双击入口（启动器）
+│   ├── EbookViewerCore.exe       # Electron 主体
+│   ├── 启动 Ebook Viewer.cmd
+│   └── data/                     # 首次启动后生成，便携数据
+├── Ebook Viewer-1.0.1-x64.exe    # NSIS 安装包
+├── Ebook Viewer-1.0.1-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.1-x64-portable.zip
+├── latest.yml
+└── builder-debug.yml             # electron-builder 调试信息（可忽略）
+```
+
+发布到 GitHub Release 时，上传 `Ebook Viewer-1.0.1-x64.exe` 和 `Ebook-Viewer-v1.0.1-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
 
 ## 📚 使用
 
@@ -175,7 +218,7 @@ npm run dist         # 生成 NSIS 安装包（需要额外打包组件）
 
 ## 🤝 贡献
 
-欢迎提交 Issue 或 Pull Request；提交前请先运行：
+欢迎提交 Issue 或 Pull Request；完整开发、提交与测试流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)。提交前请先运行：
 
 ```bash
 npm run typecheck

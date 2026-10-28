@@ -1,6 +1,6 @@
 {
   "name": "ebook-viewer",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "A focused EPUB reader with light/dark themes and a stealth reading overlay.",
   "main": "./out/main/index.js",
   "author": "Bright9025",
