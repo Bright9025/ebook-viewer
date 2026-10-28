@@ -105,7 +105,7 @@ npm run pack
 
 ## 许可证
 
-提交代码即表示你同意以本项目的 [MIT License](./LICENSE) 授权你的贡献。
+提交代码即表示你同意以本项目的 [MIT License](./LICENSE) 授权你的贡献。引入第三方代码时，请同时更新 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)，保留上游版权和许可证文本。
 
 ## 联系方式
 

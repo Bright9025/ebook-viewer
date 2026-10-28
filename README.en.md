@@ -20,21 +20,6 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 - ⌨️ **Global shortcuts** – Show/hide everything or toggle stealth mode from anywhere; arrow keys turn pages in the stealth window.
 - 🧰 **Tray resident** – Closing the main window keeps the app in the tray. EPUB files are never modified.
 
-## 🧱 Tech Stack
-
-| Technology | Purpose |
-| --- | --- |
-| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | Type safety |
-| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | Desktop runtime and main-process APIs |
-| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | Renderer UI |
-| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | Front-end bundling |
-| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | Unified main / preload / renderer builds |
-| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | Library, settings and stealth state |
-| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | Library / reader / stealth routes |
-| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB parsing, CFIs and pagination |
-| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows packaging and installer |
-| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | End-to-end smoke tests |
-
 ## 🖼️ Screenshots
 
 | Library | Reader · light |
@@ -71,6 +56,7 @@ ebook-viewer/
 ├── .gitignore
 ├── .npmrc                        # Electron download mirror
 ├── LICENSE                       # MIT License
+├── THIRD_PARTY_NOTICES.md        # Third-party licenses and notices
 ├── CONTRIBUTING.md               # Contribution guide
 ├── README.md                     # Chinese documentation
 ├── README.en.md                  # English documentation (this file)
@@ -187,6 +173,21 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 - **Desktop color sampling** – The main process captures the desktop rectangle under the stealth window. The renderer draws a separate per-character text layer and samples the background in the vertical gaps above and below each line, then computes an ink color for every character.
 - **Local storage** – The main process owns `data.json` and `books/`; nothing leaves the machine.
 
+## 🧱 Tech Stack
+
+| Technology | Purpose |
+| --- | --- |
+| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | Type safety |
+| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | Desktop runtime and main-process APIs |
+| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | Renderer UI |
+| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | Front-end bundling |
+| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | Unified main / preload / renderer builds |
+| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | Library, settings and stealth state |
+| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | Library / reader / stealth routes |
+| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB parsing, CFIs and pagination |
+| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows packaging and installer |
+| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | End-to-end smoke tests |
+
 ## 🎯 Page-Start Anchoring
 
 1. After every page turn or jump, find the first visible character in the current iframe, expand backwards to a visible sentence start, and store a CFI plus sentence, chapter and percentage.
@@ -215,6 +216,8 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 ## 📄 License
 
 This project is released under the [MIT License](./LICENSE). You are free to use, modify and distribute it.
+
+The bundled `epub.js` is BSD-2-Clause; the other main dependencies are MIT / Apache-2.0. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for the complete third-party copyright and license texts.
 
 ## 🤝 Contributing
 

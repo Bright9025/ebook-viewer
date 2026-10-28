@@ -13,6 +13,10 @@ extraFiles:
     to: 启动 Ebook Viewer.cmd
   - from: resources/launcher/EbookViewerLauncher.exe
     to: Ebook Viewer.exe
+  - from: LICENSE
+    to: LICENSE.txt
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
 asar: true
 compression: normal
 npmRebuild: false

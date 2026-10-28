@@ -20,21 +20,6 @@
 - ⌨️ **全局快捷键** – 一键隐藏 / 恢复、开关摸鱼模式；摸鱼窗内左右键翻页。
 - 🧰 **托盘常驻** – 关闭主窗口不退出，可从托盘恢复；EPUB 文件不会被修改。
 
-## 🧱 技术栈
-
-| 技术 | 用途 |
-| --- | --- |
-| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | 类型安全 |
-| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | 桌面应用运行时与主进程能力 |
-| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | 渲染进程界面 |
-| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | 前端构建 |
-| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | main / preload / renderer 一体化开发构建 |
-| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | 书库、设置、摸鱼状态管理 |
-| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | 书库 / 阅读器 / 摸鱼窗路由 |
-| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB 解析、CFI 与横向分页 |
-| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows 打包与安装包 |
-| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | 端到端冒烟测试 |
-
 ## 🖼️ 界面
 
 | 书库 | 阅读 · 明亮 |
@@ -71,6 +56,7 @@ ebook-viewer/
 ├── .gitignore
 ├── .npmrc                        # Electron 下载镜像
 ├── LICENSE                       # MIT License
+├── THIRD_PARTY_NOTICES.md        # 第三方许可证与声明
 ├── CONTRIBUTING.md               # 贡献指南
 ├── README.md                     # 中文说明（本文件）
 ├── README.en.md                  # 英文说明
@@ -187,6 +173,21 @@ release/
 - **桌面取色**：主进程按摸鱼窗矩形截取桌面，渲染进程在独立文本层中逐字渲染，并在每个字所在行的上下留白处采样局部背景，逐字计算颜色。
 - **本地存储**：主进程维护 `data.json` 与 `books/`，所有数据留在本机。
 
+## 🧱 技术栈
+
+| 技术 | 用途 |
+| --- | --- |
+| [![TypeScript](https://shieldcn.dev/badge/Language-TypeScript-3178C6.svg?logo=typescript&variant=branded&size=sm&font=space-grotesk)](https://www.typescriptlang.org) | 类型安全 |
+| [![Electron 33](https://shieldcn.dev/badge/Framework-Electron-47848F.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electronjs.org) | 桌面应用运行时与主进程能力 |
+| [![Vue 3](https://shieldcn.dev/badge/Framework-Vue.js-4FC08D.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://vuejs.org) | 渲染进程界面 |
+| [![Vite 7](https://shieldcn.dev/badge/Build-Vite-646CFF.svg?logo=vite&variant=branded&size=sm&font=space-grotesk)](https://vite.dev) | 前端构建 |
+| [![electron-vite](https://shieldcn.dev/badge/Stack-electron--vite-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://electron-vite.org) | main / preload / renderer 一体化开发构建 |
+| [![Pinia](https://shieldcn.dev/badge/State-Pinia-FFD859.svg?logo=pinia&variant=branded&size=sm&font=space-grotesk)](https://pinia.vuejs.org) | 书库、设置、摸鱼状态管理 |
+| [![Vue Router](https://shieldcn.dev/badge/Router-Vue_Router-42B883.svg?logo=vuedotjs&variant=branded&size=sm&font=space-grotesk)](https://router.vuejs.org) | 书库 / 阅读器 / 摸鱼窗路由 |
+| [![epub.js](https://shieldcn.dev/badge/EPUB-epub.js-8B5CF6.svg?variant=secondary&size=sm&font=space-grotesk)](https://github.com/futurepress/epub.js) | EPUB 解析、CFI 与横向分页 |
+| [![electron-builder](https://shieldcn.dev/badge/Package-electron--builder-2C3E50.svg?logo=electron&variant=branded&size=sm&font=space-grotesk)](https://www.electron.build) | Windows 打包与安装包 |
+| [![Playwright](https://shieldcn.dev/badge/Test-Playwright-2EAD33.svg?logo=playwright&variant=branded&size=sm&font=space-grotesk)](https://playwright.dev) | 端到端冒烟测试 |
+
 ## 🎯 首句锚定
 
 1. 每次翻页 / 跳转后，从当前 iframe 的可见区域找到第一个可见字符，向前扩展到可显示的句首，生成 CFI + 句子 + 章节 + 百分比。
@@ -215,6 +216,8 @@ release/
 ## 📄 许可证
 
 本项目采用 [MIT License](./LICENSE) 开源，可自由使用、修改和分发。
+
+运行时使用的 `epub.js` 采用 BSD-2-Clause，其余主要依赖为 MIT / Apache-2.0；完整第三方版权与许可证文本见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
 
 ## 🤝 贡献
 
