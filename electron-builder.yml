@@ -23,7 +23,7 @@ win:
     - target: dir
       arch:
         - x64
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: Ebook-Viewer-${version}-${arch}.${ext}
 nsis:
   oneClick: false
   perMachine: false

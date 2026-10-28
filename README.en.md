@@ -132,14 +132,14 @@ release/
 │   ├── EbookViewerCore.exe       # Electron app
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Created on first run
-├── Ebook Viewer-1.0.1-x64.exe    # NSIS installer
-├── Ebook Viewer-1.0.1-x64.exe.blockmap
+├── Ebook-Viewer-1.0.1-x64.exe    # NSIS installer
+├── Ebook-Viewer-1.0.1-x64.exe.blockmap
 ├── Ebook-Viewer-v1.0.1-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder debug info (ignored)
 ```
 
-For a GitHub Release, upload `Ebook Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0.1-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
+For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0.1-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
