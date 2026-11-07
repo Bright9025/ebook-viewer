@@ -750,10 +750,11 @@ function findWavyAnnotation(doc: Document, x: number, y: number): Annotation | n
   for (const item of wavyHighlights.values()) {
     if (item.doc !== doc) continue
     try {
-      if (
-        item.range.isPointInRange(caret.startContainer, caret.startOffset) ||
-        item.range.intersectsNode(caret.startContainer)
-      ) {
+      const inVisualRange = [...item.range.getClientRects()].some(
+        (rect) => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom + 4
+      )
+      if (!inVisualRange) continue
+      if (item.range.isPointInRange(caret.startContainer, caret.startOffset)) {
         return item.annotation
       }
     } catch {
