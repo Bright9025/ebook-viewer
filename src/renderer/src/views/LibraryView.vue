@@ -15,6 +15,7 @@ const store = useAppStore()
 const query = ref('')
 const sort = ref<'recent' | 'added' | 'title'>('recent')
 const importing = ref(false)
+const exporting = ref('')
 const dragDepth = ref(0)
 const dragging = computed(() => dragDepth.value > 0)
 const pendingDelete = ref<Book | null>(null)
@@ -98,6 +99,19 @@ async function openBook(book: Book): Promise<void> {
     await router.push(`/reader/${book.id}`)
   } catch (error) {
     toast(`无法打开这本书：${errorMessage(error)}`, 'error')
+  }
+}
+
+async function exportBook(book: Book): Promise<void> {
+  if (exporting.value) return
+  exporting.value = book.id
+  try {
+    const path = await window.api.library.export(book.id)
+    if (path) toast(`已导出带标注的 EPUB：${path}`, 'success')
+  } catch (error) {
+    toast(`导出失败：${errorMessage(error)}`, 'error')
+  } finally {
+    exporting.value = ''
   }
 }
 
@@ -257,6 +271,15 @@ function relativeTime(book: Book): string {
               <div class="cover-stroke" />
               <button class="delete-button" type="button" title="从书架移除" @click.stop="confirmDelete(book)">
                 <AppIcon name="trash" :size="14" />
+              </button>
+              <button
+                class="export-button"
+                type="button"
+                :title="exporting === book.id ? '正在导出…' : '导出含标注的 EPUB'"
+                :disabled="exporting === book.id"
+                @click.stop="exportBook(book)"
+              >
+                <AppIcon name="download" :size="14" />
               </button>
               <div class="cover-action">
                 <span>{{ progressPercent(book) > 0 ? '继续阅读' : '开始阅读' }}</span>
@@ -514,10 +537,10 @@ function relativeTime(book: Book): string {
   pointer-events: none;
 }
 
-.delete-button {
+.delete-button,
+.export-button {
   position: absolute;
   top: 8px;
-  right: 8px;
   width: 28px;
   height: 28px;
   display: grid;
@@ -531,13 +554,31 @@ function relativeTime(book: Book): string {
   transition: opacity 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-.book-card:hover .delete-button {
+.delete-button {
+  right: 8px;
+}
+
+.export-button {
+  left: 8px;
+}
+
+.book-card:hover .delete-button,
+.book-card:hover .export-button {
   opacity: 1;
   transform: none;
 }
 
 .delete-button:hover {
   background: var(--danger);
+}
+
+.export-button:hover {
+  background: var(--accent);
+}
+
+.export-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .cover-action {

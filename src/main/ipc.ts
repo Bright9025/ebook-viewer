@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import type { Annotation, AppSettings, Bookmark, ProgressPayload, StealthContextPayload } from '../shared/types'
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
+import { exportBookAsEpub } from './export'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
 import { refreshTrayMenu } from './tray'
@@ -56,6 +57,10 @@ export function registerIpc(): void {
 
   ipcMain.handle('book:read', async (_event, id: string) => readBook(id))
   ipcMain.handle('book:read-path', async (_event, path: string) => readPath(path))
+  ipcMain.handle('library:export', async (event, id: string, targetPath?: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow()
+    return exportBookAsEpub(id, win, targetPath)
+  })
   ipcMain.handle('library:touch', async (_event, id: string) => {
     await touchBook(id)
     refreshTrayMenu()

@@ -15,6 +15,7 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 - 📚 **Local library** – Import EPUB files by button or drag-and-drop; extract covers, titles and authors; remember recently read books and progress.
 - 📖 **Focused reader** – Horizontal pagination, table of contents, bookmarks, font size / line height / margins / font family / justification.
 - ✍️ **Text annotations** – Select text, then right-click to copy, add a five-color highlight, underline, wavy underline or note. Annotations are saved per book and can be jumped to, edited or deleted from the sidebar.
+- 📤 **Export with reading data** – Export the book as a new EPUB with annotations, bookmarks and current progress, plus a readable “Reading Notes” appendix.
 - 🌗 **Light & dark** – Switch the UI and book typography together, or follow the system theme; restore the previous theme on launch without a white flash.
 - 🪟 **Resizable window** – Re-paginate when the window, font size or margins change, keeping the previous anchor sentence on the current page without reloading the book.
 - 🫥 **Stealth mode** – A small transparent, topmost window whose text color follows the pixels underneath, character by character. Drag it, resize it, hide it or exit it at any time.
@@ -136,6 +137,7 @@ For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0
 4. Select text and right-click to copy, add a five-color highlight, underline or wavy underline, or a note; click an existing annotation to edit or delete it.
 5. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
 6. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
+7. Click the download button on a library card or in the reader toolbar to export an EPUB containing annotations, bookmarks and current progress.
 
 ## ⌨️ Shortcuts
 
@@ -208,6 +210,17 @@ The interaction follows the core flow in the W3C [EPUB Annotations Use Cases and
 - Each annotation stores its CFI, quote, chapter, progress, color and style; click a highlight or underline to edit its note/color/style or delete it. Wavy underlines use the CSS Custom Highlight API.
 - The top-bar **Annotations** button opens a sidebar with all annotations, jump targets and delete actions.
 - Notes are plain text and stored locally in `data.json`. Import/export, annotation threads and image annotations are not included in this version.
+
+## 📤 Export with Reading Data
+
+Click the download button on a library card or in the reader toolbar, then choose a save location:
+
+- The original EPUB is copied and never modified.
+- `META-INF/ebook-viewer.json` stores the complete annotation set, bookmarks and current progress (CFI, percentage, chapter and sentence).
+- A separate “Reading Notes” XHTML chapter lists progress, bookmarks and all annotations for immediate reading.
+- The result remains a standard EPUB and can be imported into this app or other EPUB readers.
+
+> Annotations are currently stored in an Ebook Viewer-specific JSON format. Other readers will normally show the “Reading Notes” chapter but will not restore highlights automatically. Full EPUB Annotations import/export is not implemented yet.
 
 ## 🫥 Stealth Mode
 

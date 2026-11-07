@@ -64,6 +64,7 @@ const icons: Record<string, string[]> = {
   highlighter: ['M9 14l-4 4v3h3l4-4', 'M14 3l7 7-7.5 7.5-7-7z', 'M11 7l6 6'],
   note: ['M5 4h14v16H5z', 'M8 8h8', 'M8 12h8', 'M8 16h5'],
   copy: ['M9 9h11v11H9z', 'M4 15V4h11'],
+  download: ['M12 3v12', 'M7 10l5 5 5-5', 'M5 21h14'],
   coffee: ['M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z', 'M17 9h1.5a2.5 2.5 0 0 1 0 5H17', 'M7 3v2', 'M11 3v2']
 }
 

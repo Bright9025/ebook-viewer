@@ -41,6 +41,7 @@ const settingsOpen = ref(false)
 const chromeVisible = ref(true)
 const isFullscreen = ref(false)
 const maximized = ref(false)
+const exporting = ref(false)
 const locationsReady = ref(false)
 const draftReader = reactive<ReaderSettings>({ ...store.settings.reader })
 
@@ -460,8 +461,21 @@ async function goCfi(cfi: string): Promise<void> {
   }
 }
 
-async function toggleBookmark(): Promise<void> {
-  if (!anchor.value) return
+async function exportCurrentBook(): Promise<void> {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    await saveProgress()
+    const path = await window.api.library.export(bookId)
+    if (path) toast(`已导出带标注的 EPUB：${path}`, 'success')
+  } catch (error) {
+    toast(`导出失败：${errorMessage(error)}`, 'error')
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function toggleBookmark(): Promise<void> {  if (!anchor.value) return
   const existing = bookmarks.value.find((item) => item.cfi === anchor.value?.cfi)
   try {
     if (existing) {
@@ -964,7 +978,7 @@ function scheduleSave(): void {
   }, 500)
 }
 
-function saveProgress(): void {
+async function saveProgress(): Promise<void> {
   if (!anchor.value || !bookId) return
   const payload = {
     bookId,
@@ -980,11 +994,15 @@ function saveProgress(): void {
     chapter: payload.chapter,
     sentence: payload.sentence
   })
-  void window.api.progress.set(payload)
+  await window.api.progress.set(payload)
 }
 
-function goBack(): void {
-  saveProgress()
+async function goBack(): Promise<void> {
+  try {
+    await saveProgress()
+  } catch {
+    /* navigation should not be blocked by a progress write failure */
+  }
   void router.push('/')
 }
 
@@ -1072,6 +1090,15 @@ function wait(ms: number): Promise<void> {
         </button>
         <button class="chrome-button reader-optional" :class="{ active: isBookmarked }" type="button" title="标记当前页" @click="toggleBookmark">
           <AppIcon name="bookmark-plus" :size="17" />
+        </button>
+        <button
+          class="chrome-button reader-optional"
+          type="button"
+          :title="exporting ? '正在导出…' : '导出含标注的 EPUB'"
+          :disabled="exporting"
+          @click="exportCurrentBook"
+        >
+          <AppIcon name="download" :size="17" />
         </button>
         <span class="action-divider" />
         <button class="chrome-button" type="button" title="排版" @click="settingsOpen = true; keepChrome()">

@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { rm } from 'node:fs/promises'
+import { readFile, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { chromium } from '@playwright/test'
+import JSZip from 'jszip'
 
 const require = createRequire(import.meta.url)
 const electronPath = require('electron')
@@ -238,6 +239,42 @@ try {
   assert(notedAnnotations.some((item) => item.note === '这是一条测试笔记'), 'annotation note is persisted')
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
+
+  const exportCfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
+  await page.evaluate(
+    async ({ id, cfi }) =>
+      window.api.progress.set({
+        bookId: id,
+        cfi,
+        percent: 0.1,
+        chapter: '测试章节',
+        sentence: '导出测试进度',
+        source: 'main'
+      }),
+    { id: bookId, cfi: exportCfi }
+  )
+  await page.evaluate(
+    async ({ id, cfi }) =>
+      window.api.bookmarks.add({ bookId: id, cfi, label: '导出测试书签', chapter: '测试章节', percent: 0.1 }),
+    { id: bookId, cfi: exportCfi }
+  )
+  const exportPath = join(root, '.tmp-e2e', 'annotated-export.epub')
+  const exported = await page.evaluate(
+    async ({ id, path }) => window.api.library.export(id, path),
+    { id: bookId, path: exportPath }
+  )
+  assert(exported === exportPath, 'annotated EPUB export writes the target file')
+  const exportedZip = await JSZip.loadAsync(await readFile(exportPath))
+  const exportData = JSON.parse(await exportedZip.file('META-INF/ebook-viewer.json').async('string'))
+  assert(exportData.progress?.cfi === exportCfi, 'exported EPUB includes current progress CFI')
+  assert(exportData.annotations.length >= 2, 'exported EPUB includes annotations')
+  assert(exportData.bookmarks.length === 1, 'exported EPUB includes bookmarks')
+  const notesFile = Object.keys(exportedZip.files).find((name) => name.endsWith('ebook-viewer-notes.xhtml'))
+  assert(Boolean(notesFile), 'exported EPUB includes a reading-notes document')
+  assert(
+    (await exportedZip.file(notesFile).async('string')).includes('这是一条测试笔记'),
+    'reading-notes document contains annotation notes'
+  )
 
   const cfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
   const opened = await page.evaluate(

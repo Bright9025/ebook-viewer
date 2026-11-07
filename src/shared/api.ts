@@ -24,6 +24,7 @@ export interface LibraryApi {
   read(id: string): Promise<Uint8Array>
   readPath(path: string): Promise<Uint8Array>
   touch(id: string): Promise<void>
+  export(id: string, targetPath?: string): Promise<string | null>
 }
 
 export interface SettingsApi {
