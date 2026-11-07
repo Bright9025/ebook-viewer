@@ -3,6 +3,7 @@ import type { Api } from '../shared/api'
 import type {
   Annotation,
   AnnotationColor,
+  AnnotationStyle,
   AppSettings,
   Book,
   HotkeyStatus,
@@ -47,7 +48,7 @@ const api: Api = {
   annotations: {
     list: (bookId) => ipcRenderer.invoke('annotations:list', bookId) as Promise<Annotation[]>,
     add: (input) => ipcRenderer.invoke('annotations:add', input) as Promise<Annotation>,
-    update: (id, patch: { note?: string; color?: AnnotationColor }) =>
+    update: (id, patch: { note?: string; color?: AnnotationColor; style?: AnnotationStyle }) =>
       ipcRenderer.invoke('annotations:update', id, patch) as Promise<Annotation>,
     remove: (id) => ipcRenderer.invoke('annotations:remove', id) as Promise<void>
   },

@@ -32,6 +32,7 @@ export interface Bookmark {
 }
 
 export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink'
+export type AnnotationStyle = 'highlight' | 'underline' | 'wavy' | 'none'
 
 export interface Annotation {
   id: string
@@ -40,6 +41,7 @@ export interface Annotation {
   text: string
   note: string
   color: AnnotationColor
+  style: AnnotationStyle
   chapter: string
   percent: number
   createdAt: number

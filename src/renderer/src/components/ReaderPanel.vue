@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Annotation, Bookmark } from '@shared/types'
-import { annotationColor } from '../lib/annotations'
+import { annotationColor, annotationStyle } from '../lib/annotations'
 import type { FlatTocItem } from '../lib/epub'
 import AppIcon from './AppIcon.vue'
 
@@ -105,7 +105,8 @@ function formatPercent(value: number): string {
                   <span class="annotation-quote">{{ annotation.text }}</span>
                   <span v-if="annotation.note" class="annotation-note">{{ annotation.note }}</span>
                   <span class="annotation-meta">
-                    {{ annotation.chapter || '正文' }} · {{ formatPercent(annotation.percent) }}
+                    {{ annotationStyle(annotation.style) }} · {{ annotation.chapter || '正文' }} ·
+                    {{ formatPercent(annotation.percent) }}
                   </span>
                 </button>
                 <button class="bookmark-remove" type="button" title="删除标注" @click="emit('removeAnnotation', annotation.id)">

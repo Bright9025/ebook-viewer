@@ -121,11 +121,12 @@ export class Store {
     await this.saveNow()
   }
 
-  async updateAnnotation(id: string, patch: Partial<Pick<Annotation, 'note' | 'color'>>): Promise<Annotation | null> {
+  async updateAnnotation(id: string, patch: Partial<Pick<Annotation, 'note' | 'color' | 'style'>>): Promise<Annotation | null> {
     const annotation = this.data.annotations.find((item) => item.id === id)
     if (!annotation) return null
     if (typeof patch.note === 'string') annotation.note = patch.note
     if (patch.color) annotation.color = patch.color
+    if (patch.style) annotation.style = patch.style
     annotation.updatedAt = Date.now()
     await this.saveNow()
     return annotation
@@ -183,6 +184,8 @@ function normalizeAnnotation(value: unknown): Annotation {
   const annotation = value as Partial<Annotation>
   const colors = ['yellow', 'green', 'blue', 'pink'] as const
   const color = colors.includes(annotation.color as (typeof colors)[number]) ? annotation.color! : 'yellow'
+  const styles = ['highlight', 'underline', 'wavy', 'none'] as const
+  const style = styles.includes(annotation.style as (typeof styles)[number]) ? annotation.style! : 'highlight'
   return {
     id: String(annotation.id ?? ''),
     bookId: String(annotation.bookId ?? ''),
@@ -190,6 +193,7 @@ function normalizeAnnotation(value: unknown): Annotation {
     text: String(annotation.text ?? ''),
     note: String(annotation.note ?? ''),
     color,
+    style,
     chapter: String(annotation.chapter ?? ''),
     percent: Number(annotation.percent ?? 0),
     createdAt: Number(annotation.createdAt ?? Date.now()),

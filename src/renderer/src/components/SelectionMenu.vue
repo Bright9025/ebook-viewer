@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { AnnotationColor } from '@shared/types'
-import { annotationColors } from '../lib/annotations'
+import { ref, watch } from 'vue'
+import type { AnnotationColor, AnnotationStyle } from '@shared/types'
+import { annotationColors, annotationStyles } from '../lib/annotations'
 import AppIcon from './AppIcon.vue'
 
-defineProps<{
+const props = defineProps<{
   open: boolean
   x: number
   y: number
@@ -11,10 +12,19 @@ defineProps<{
 
 const emit = defineEmits<{
   copy: []
-  highlight: [color: AnnotationColor]
+  annotate: [color: AnnotationColor, style: AnnotationStyle]
   note: []
   close: []
 }>()
+
+const selectedStyle = ref<AnnotationStyle>('highlight')
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) selectedStyle.value = 'highlight'
+  }
+)
 </script>
 
 <template>
@@ -36,17 +46,29 @@ const emit = defineEmits<{
         </button>
 
         <div class="menu-separator" />
-        <div class="color-row" role="group" aria-label="高亮颜色">
-          <span class="color-label">高亮</span>
+        <div class="style-row" role="group" aria-label="标注样式">
+          <button
+            v-for="item in annotationStyles.filter((option) => option.style !== 'none')"
+            :key="item.style"
+            class="style-option"
+            :class="{ active: selectedStyle === item.style }"
+            type="button"
+            @click="selectedStyle = item.style"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+        <div class="color-row" role="group" aria-label="标注颜色">
+          <span class="color-label">颜色</span>
           <button
             v-for="item in annotationColors"
             :key="item.color"
             class="color-swatch"
             :style="{ '--swatch': item.swatch }"
             type="button"
-            :title="`${item.label}高亮`"
-            :aria-label="`${item.label}高亮`"
-            @click="emit('highlight', item.color)"
+            :title="`${item.label}${annotationStyles.find((option) => option.style === selectedStyle)?.label}`"
+            :aria-label="`${item.label}${annotationStyles.find((option) => option.style === selectedStyle)?.label}`"
+            @click="emit('annotate', item.color, selectedStyle)"
           />
         </div>
 
@@ -63,7 +85,7 @@ const emit = defineEmits<{
 .selection-menu {
   position: fixed;
   z-index: 310;
-  width: 208px;
+  width: 224px;
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 11px;
@@ -107,8 +129,34 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 34px;
+  min-height: 32px;
   padding: 0 8px;
+}
+
+.style-row {
+  display: flex;
+  gap: 2px;
+  padding: 3px 5px;
+}
+
+.style-option {
+  flex: 1;
+  height: 27px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.style-option:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.style-option.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .color-label {

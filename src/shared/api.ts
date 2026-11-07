@@ -1,6 +1,7 @@
 import type {
   Annotation,
   AnnotationColor,
+  AnnotationStyle,
   AppSettings,
   Book,
   Bookmark,
@@ -42,7 +43,7 @@ export interface BookmarksApi {
 export interface AnnotationsApi {
   list(bookId: string): Promise<Annotation[]>
   add(input: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>): Promise<Annotation>
-  update(id: string, patch: { note?: string; color?: AnnotationColor }): Promise<Annotation>
+  update(id: string, patch: { note?: string; color?: AnnotationColor; style?: AnnotationStyle }): Promise<Annotation>
   remove(id: string): Promise<void>
 }
 

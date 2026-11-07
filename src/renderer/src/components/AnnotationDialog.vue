@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import type { AnnotationColor } from '@shared/types'
-import { annotationColors } from '../lib/annotations'
+import type { AnnotationColor, AnnotationStyle } from '@shared/types'
+import { annotationColors, annotationStyles } from '../lib/annotations'
 import AppIcon from './AppIcon.vue'
 
 const props = defineProps<{
@@ -9,17 +9,19 @@ const props = defineProps<{
   quote: string
   note: string
   color: AnnotationColor
+  markStyle: AnnotationStyle
   editing: boolean
 }>()
 
 const emit = defineEmits<{
-  save: [payload: { note: string; color: AnnotationColor }]
+  save: [payload: { note: string; color: AnnotationColor; style: AnnotationStyle }]
   remove: []
   close: []
 }>()
 
 const draftNote = ref('')
 const draftColor = ref<AnnotationColor>('yellow')
+const draftStyle = ref<AnnotationStyle>('highlight')
 const textarea = ref<HTMLTextAreaElement | null>(null)
 
 watch(
@@ -28,6 +30,7 @@ watch(
     if (!open) return
     draftNote.value = props.note
     draftColor.value = props.color
+    draftStyle.value = props.markStyle
     await nextTick()
     textarea.value?.focus()
   },
@@ -35,7 +38,7 @@ watch(
 )
 
 function save(): void {
-  emit('save', { note: draftNote.value.trim(), color: draftColor.value })
+  emit('save', { note: draftNote.value.trim(), color: draftColor.value, style: draftStyle.value })
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -73,11 +76,27 @@ function onKeydown(event: KeyboardEvent): void {
             v-model="draftNote"
             class="note-input"
             rows="5"
-            placeholder="写下你的想法，或留空只做高亮…"
+            placeholder="写下你的想法，或留空只做标记…"
           />
 
-          <div class="color-picker">
-            <span class="field-label">高亮颜色</span>
+          <div class="style-picker">
+            <span class="field-label">标记样式</span>
+            <div class="style-options">
+              <button
+                v-for="item in annotationStyles"
+                :key="item.style"
+                class="style-option"
+                :class="{ active: draftStyle === item.style }"
+                type="button"
+                @click="draftStyle = item.style"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="draftStyle !== 'none'" class="color-picker">
+            <span class="field-label">颜色</span>
             <div class="color-options">
               <button
                 v-for="item in annotationColors"
@@ -128,6 +147,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 .annotation-dialog {
   width: min(520px, 94vw);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -208,6 +229,36 @@ function onKeydown(event: KeyboardEvent): void {
 
 .color-picker {
   margin-top: 16px;
+}
+
+.style-picker {
+  margin-top: 16px;
+}
+
+.style-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.style-option {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.style-option:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.style-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .color-options {

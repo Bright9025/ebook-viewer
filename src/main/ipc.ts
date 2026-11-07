@@ -112,7 +112,7 @@ export function registerIpc(): void {
     return annotation
   })
 
-  ipcMain.handle('annotations:update', async (_event, id: string, patch: { note?: string; color?: Annotation['color'] }) => {
+  ipcMain.handle('annotations:update', async (_event, id: string, patch: { note?: string; color?: Annotation['color']; style?: Annotation['style'] }) => {
     const annotation = await getStore().updateAnnotation(id, patch ?? {})
     if (!annotation) throw new Error('ANNOTATION_NOT_FOUND')
     return annotation

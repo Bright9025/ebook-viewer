@@ -1,10 +1,15 @@
-import type { AnnotationColor } from '@shared/types'
+import type { AnnotationColor, AnnotationStyle } from '@shared/types'
 
 export interface AnnotationColorOption {
   color: AnnotationColor
   label: string
   swatch: string
   fill: string
+}
+
+export interface AnnotationStyleOption {
+  style: AnnotationStyle
+  label: string
 }
 
 export const annotationColors: AnnotationColorOption[] = [
@@ -14,6 +19,17 @@ export const annotationColors: AnnotationColorOption[] = [
   { color: 'pink', label: '粉色', swatch: '#cf83a0', fill: 'rgba(207, 131, 160, 0.32)' }
 ]
 
+export const annotationStyles: AnnotationStyleOption[] = [
+  { style: 'highlight', label: '高亮' },
+  { style: 'underline', label: '下划线' },
+  { style: 'wavy', label: '下波浪线' },
+  { style: 'none', label: '只记笔记' }
+]
+
 export function annotationColor(color: AnnotationColor): AnnotationColorOption {
   return annotationColors.find((item) => item.color === color) ?? annotationColors[0]
+}
+
+export function annotationStyle(style: AnnotationStyle): string {
+  return annotationStyles.find((item) => item.style === style)?.label ?? '高亮'
 }

@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Book as EpubBook, NavItem, Rendition } from 'epubjs'
-import type { Annotation, AnnotationColor, Bookmark, ReaderSettings, ThemeMode } from '@shared/types'
+import type { Annotation, AnnotationColor, AnnotationStyle, Bookmark, ReaderSettings, ThemeMode } from '@shared/types'
 import { defaultReaderSettings } from '@shared/defaults'
 import AnnotationDialog from '../components/AnnotationDialog.vue'
 import AppIcon from '../components/AppIcon.vue'
@@ -55,8 +55,10 @@ const annotationDialogOpen = ref(false)
 const annotationQuote = ref('')
 const annotationNote = ref('')
 const annotationColorValue = ref<AnnotationColor>('yellow')
+const annotationStyleValue = ref<AnnotationStyle>('highlight')
 const annotationCfi = ref('')
 const annotationEditing = ref<Annotation | null>(null)
+let wavyHighlights = new Map<string, { doc: Document; name: string; annotation: Annotation; range: Range }>()
 
 let offMaximized: (() => void) | null = null
 
@@ -243,6 +245,7 @@ async function restoreAfterResize(): Promise<void> {
     isReflowing = false
   }
   bindIframeEvents()
+  refreshWavyAnnotations()
   if (current) {
     anchor.value = current
     chapterTitle.value = chapterLabelFor(toc.value, current.href) || chapterTitle.value
@@ -258,6 +261,7 @@ function onRelocated(): void {
   if (Date.now() < suppressAnchorUntil) return
   updateFromLocation()
   bindIframeEvents()
+  refreshWavyAnnotations()
   if (anchorTimer) window.clearTimeout(anchorTimer)
   anchorTimer = window.setTimeout(() => {
     anchorTimer = null
@@ -508,8 +512,8 @@ function onIframeContextMenu(event: MouseEvent, contents: any): void {
   if (!frame) return
   const frameRect = frame.getBoundingClientRect()
   const rangeRect = selection.getRangeAt(0).getBoundingClientRect()
-  const menuWidth = 208
-  const menuHeight = 170
+  const menuWidth = 224
+  const menuHeight = 238
   let x = frameRect.left + rangeRect.left
   let y = frameRect.top + rangeRect.bottom + 8
   x = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8))
@@ -543,7 +547,7 @@ function copySelection(): void {
   toast('已复制选中文字', 'success')
 }
 
-async function highlightSelection(color: AnnotationColor): Promise<void> {
+async function annotateSelection(color: AnnotationColor, style: AnnotationStyle): Promise<void> {
   const selection = selectionMenu.value
   if (!selection.open || !selection.cfi) return
   closeSelectionMenu()
@@ -554,14 +558,15 @@ async function highlightSelection(color: AnnotationColor): Promise<void> {
       text: selection.text,
       note: '',
       color,
+      style,
       chapter: chapterTitle.value,
       percent: percent.value
     })
     annotations.value = [annotation, ...annotations.value]
-    applyAnnotation(annotation)
-    toast('已添加高亮', 'success')
+    applyAnnotations()
+    toast(style === 'highlight' ? '已添加高亮' : style === 'underline' ? '已添加下划线' : '已添加下波浪线', 'success')
   } catch (error) {
-    toast(`高亮失败：${errorMessage(error)}`, 'error')
+    toast(`标注失败：${errorMessage(error)}`, 'error')
   }
 }
 
@@ -573,6 +578,7 @@ function openNoteDialog(): void {
   annotationQuote.value = selection.text
   annotationNote.value = ''
   annotationColorValue.value = 'yellow'
+  annotationStyleValue.value = 'highlight'
   closeSelectionMenu()
   annotationDialogOpen.value = true
   keepChrome()
@@ -584,16 +590,17 @@ function editAnnotation(annotation: Annotation): void {
   annotationQuote.value = annotation.text
   annotationNote.value = annotation.note
   annotationColorValue.value = annotation.color
+  annotationStyleValue.value = annotation.style
   annotationDialogOpen.value = true
   keepChrome()
 }
 
-async function saveAnnotation(payload: { note: string; color: AnnotationColor }): Promise<void> {
+async function saveAnnotation(payload: { note: string; color: AnnotationColor; style: AnnotationStyle }): Promise<void> {
   try {
     if (annotationEditing.value) {
       const updated = await store.updateAnnotation(annotationEditing.value.id, payload)
       annotations.value = annotations.value.map((item) => (item.id === updated.id ? updated : item))
-      applyAnnotation(updated)
+      applyAnnotations()
       toast('标注已更新', 'success')
     } else {
       const annotation = await store.addAnnotation({
@@ -602,12 +609,13 @@ async function saveAnnotation(payload: { note: string; color: AnnotationColor })
         text: annotationQuote.value,
         note: payload.note,
         color: payload.color,
+        style: payload.style,
         chapter: chapterTitle.value,
         percent: percent.value
       })
       annotations.value = [annotation, ...annotations.value]
-      applyAnnotation(annotation)
-      toast(payload.note ? '已保存标注' : '已添加高亮', 'success')
+      applyAnnotations()
+      toast(payload.note ? '已保存标注' : '已添加标注', 'success')
     }
     annotationDialogOpen.value = false
     annotationEditing.value = null
@@ -622,7 +630,7 @@ async function removeAnnotation(id: string): Promise<void> {
   try {
     await store.removeAnnotation(id)
     annotations.value = annotations.value.filter((item) => item.id !== id)
-    removeAnnotationHighlight(annotation.cfi)
+    applyAnnotations()
     if (annotationEditing.value?.id === id) {
       annotationDialogOpen.value = false
       annotationEditing.value = null
@@ -638,38 +646,136 @@ function applyAnnotation(annotation: Annotation): void {
   if (!instance?.annotations) return
   try {
     instance.annotations.remove(annotation.cfi, 'highlight')
+    instance.annotations.remove(annotation.cfi, 'underline')
   } catch {
     /* ignore */
   }
+  if (annotation.style === 'none') return
+  const color = annotationColor(annotation.color)
+  if (annotation.style === 'wavy') {
+    applyWavyAnnotation(annotation)
+    return
+  }
   try {
-    const color = annotationColor(annotation.color)
-    instance.annotations.highlight(
-      annotation.cfi,
-      { id: annotation.id },
-      () => editAnnotation(annotation),
-      'reader-annotation',
-      {
-        fill: color.swatch,
-        'fill-opacity': '0.38'
-      }
-    )
+    if (annotation.style === 'underline') {
+      instance.annotations.underline(
+        annotation.cfi,
+        { id: annotation.id },
+        () => editAnnotation(annotation),
+        'reader-annotation',
+        {
+          stroke: color.swatch,
+          'stroke-opacity': '0.95',
+          'stroke-width': '2',
+          'mix-blend-mode': 'normal'
+        }
+      )
+    } else {
+      instance.annotations.highlight(
+        annotation.cfi,
+        { id: annotation.id },
+        () => editAnnotation(annotation),
+        'reader-annotation',
+        {
+          fill: color.swatch,
+          'fill-opacity': '0.38'
+        }
+      )
+    }
   } catch (error) {
     console.warn('[reader] failed to render annotation', error)
   }
 }
 
+function applyWavyAnnotation(annotation: Annotation): void {
+  const instance = rendition.value as any
+  const list = (instance?.getContents?.() ?? []) as any[]
+  for (const contents of list) {
+    const base = String(contents?.cfiBase ?? '')
+    if (base && !annotation.cfi.startsWith(`epubcfi(${base}!`)) continue
+    const doc = contents.document as Document | undefined
+    const win = contents.window as any
+    const registry = win?.CSS?.highlights
+    const HighlightCtor = win?.Highlight
+    if (!doc || !registry || !HighlightCtor) continue
+    let range: Range | null = null
+    try {
+      range = contents.range(annotation.cfi)
+    } catch {
+      range = null
+    }
+    if (!range || range.collapsed) continue
+    const name = `reader-${annotation.id.replace(/[^a-zA-Z0-9]/g, '')}`
+    let style = doc.getElementById('reader-annotation-highlights') as HTMLStyleElement | null
+    if (!style) {
+      style = doc.createElement('style')
+      style.id = 'reader-annotation-highlights'
+      doc.head.appendChild(style)
+    }
+    const color = annotationColor(annotation.color)
+    style.textContent += `::highlight(${name}) {
+      text-decoration-line: underline;
+      text-decoration-style: wavy;
+      text-decoration-color: ${color.swatch};
+      text-decoration-thickness: 1.6px;
+      text-underline-offset: 3px;
+    }\n`
+    try {
+      registry.set(name, new HighlightCtor(range))
+      wavyHighlights.set(name, { doc, name, annotation, range })
+    } catch (error) {
+      console.warn('[reader] failed to render wavy annotation', error)
+    }
+    return
+  }
+}
+
+function clearWavyHighlights(): void {
+  for (const item of wavyHighlights.values()) {
+    try {
+      const registry = (item.doc.defaultView as any)?.CSS?.highlights
+      registry?.delete(item.name)
+    } catch {
+      /* ignore */
+    }
+  }
+  wavyHighlights = new Map()
+  const instance = rendition.value as any
+  const list = (instance?.getContents?.() ?? []) as any[]
+  for (const contents of list) {
+    contents.document?.getElementById('reader-annotation-highlights')?.remove()
+  }
+}
+
 function applyAnnotations(): void {
+  clearWavyHighlights()
   for (const annotation of annotations.value) applyAnnotation(annotation)
 }
 
-function removeAnnotationHighlight(cfi: string): void {
-  const instance = rendition.value as any
-  if (!instance?.annotations) return
-  try {
-    instance.annotations.remove(cfi, 'highlight')
-  } catch {
-    /* ignore */
+function refreshWavyAnnotations(): void {
+  clearWavyHighlights()
+  for (const annotation of annotations.value) {
+    if (annotation.style === 'wavy') applyWavyAnnotation(annotation)
   }
+}
+
+function findWavyAnnotation(doc: Document, x: number, y: number): Annotation | null {
+  const caret = doc.caretRangeFromPoint?.(x, y)
+  if (!caret) return null
+  for (const item of wavyHighlights.values()) {
+    if (item.doc !== doc) continue
+    try {
+      if (
+        item.range.isPointInRange(caret.startContainer, caret.startOffset) ||
+        item.range.intersectsNode(caret.startContainer)
+      ) {
+        return item.annotation
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null
 }
 
 async function toggleStealth(): Promise<void> {
@@ -788,7 +894,15 @@ function onWheel(event: WheelEvent): void {
   showChrome()
 }
 
-function onIframeClick(): void {
+function onIframeClick(event?: MouseEvent, contents?: any): void {
+  if (event && contents?.document) {
+    const annotation = findWavyAnnotation(contents.document, event.clientX, event.clientY)
+    if (annotation) {
+      event.stopPropagation()
+      editAnnotation(annotation)
+      return
+    }
+  }
   closeSelectionMenu()
   showChrome()
 }
@@ -804,7 +918,7 @@ function bindIframeEvents(): void {
     doc.addEventListener('mousemove', onPointerMove, { passive: true })
     doc.addEventListener('keydown', onKeyDown)
     doc.addEventListener('wheel', onWheel, { passive: false })
-    doc.addEventListener('click', onIframeClick)
+    doc.addEventListener('click', (event) => onIframeClick(event, item))
     doc.addEventListener('contextmenu', (event) => onIframeContextMenu(event, item))
   }
 }
@@ -1030,7 +1144,7 @@ function wait(ms: number): Promise<void> {
       :x="selectionMenu.x"
       :y="selectionMenu.y"
       @copy="copySelection"
-      @highlight="highlightSelection"
+      @annotate="annotateSelection"
       @note="openNoteDialog"
       @close="closeSelectionMenu"
     />
@@ -1040,6 +1154,7 @@ function wait(ms: number): Promise<void> {
       :quote="annotationQuote"
       :note="annotationNote"
       :color="annotationColorValue"
+      :mark-style="annotationStyleValue"
       :editing="Boolean(annotationEditing)"
       @save="saveAnnotation"
       @remove="annotationEditing && removeAnnotation(annotationEditing.id)"

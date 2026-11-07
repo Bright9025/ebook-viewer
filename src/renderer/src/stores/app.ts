@@ -4,6 +4,7 @@ import { defaultSettings } from '@shared/defaults'
 import type {
   Annotation,
   AnnotationColor,
+  AnnotationStyle,
   AppSettings,
   AppTheme,
   Book,
@@ -154,7 +155,7 @@ export const useAppStore = defineStore('app', () => {
 
   async function updateAnnotation(
     id: string,
-    patch: { note?: string; color?: AnnotationColor }
+    patch: { note?: string; color?: AnnotationColor; style?: AnnotationStyle }
   ): Promise<Annotation> {
     const annotation = await window.api.annotations.update(id, patch)
     annotations.value = annotations.value.map((item) => (item.id === id ? annotation : item))
