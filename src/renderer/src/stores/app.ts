@@ -2,6 +2,8 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { defaultSettings } from '@shared/defaults'
 import type {
+  Annotation,
+  AnnotationColor,
   AppSettings,
   AppTheme,
   Book,
@@ -15,6 +17,7 @@ export const useAppStore = defineStore('app', () => {
   const books = ref<Book[]>([])
   const settings = ref<AppSettings>(JSON.parse(JSON.stringify(defaultSettings)) as AppSettings)
   const bookmarks = ref<Bookmark[]>([])
+  const annotations = ref<Annotation[]>([])
   const ready = ref(false)
   const stealthVisible = ref(false)
 
@@ -53,6 +56,7 @@ export const useAppStore = defineStore('app', () => {
         books.value = data.books
         settings.value = data.settings
         bookmarks.value = data.bookmarks
+        annotations.value = data.annotations
         ready.value = true
         applyTheme()
         window.api.setNativeTheme(settings.value.theme)
@@ -106,6 +110,7 @@ export const useAppStore = defineStore('app', () => {
   function removeBookLocal(id: string): void {
     books.value = books.value.filter((item) => item.id !== id)
     bookmarks.value = bookmarks.value.filter((item) => item.bookId !== id)
+    annotations.value = annotations.value.filter((item) => item.bookId !== id)
     if (settings.value.lastBookId === id) settings.value.lastBookId = books.value[0]?.id ?? null
   }
 
@@ -133,6 +138,34 @@ export const useAppStore = defineStore('app', () => {
     bookmarks.value = bookmarks.value.filter((bookmark) => bookmark.id !== id)
   }
 
+  function annotationsFor(bookId: string): Annotation[] {
+    return annotations.value
+      .filter((annotation) => annotation.bookId === bookId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  }
+
+  async function addAnnotation(
+    input: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<Annotation> {
+    const annotation = await window.api.annotations.add(input)
+    annotations.value = [annotation, ...annotations.value]
+    return annotation
+  }
+
+  async function updateAnnotation(
+    id: string,
+    patch: { note?: string; color?: AnnotationColor }
+  ): Promise<Annotation> {
+    const annotation = await window.api.annotations.update(id, patch)
+    annotations.value = annotations.value.map((item) => (item.id === id ? annotation : item))
+    return annotation
+  }
+
+  async function removeAnnotation(id: string): Promise<void> {
+    await window.api.annotations.remove(id)
+    annotations.value = annotations.value.filter((annotation) => annotation.id !== id)
+  }
+
   function bookById(id: string): Book | undefined {
     return books.value.find((book) => book.id === id)
   }
@@ -141,6 +174,7 @@ export const useAppStore = defineStore('app', () => {
     books,
     settings,
     bookmarks,
+    annotations,
     ready,
     stealthVisible,
     theme,
@@ -155,6 +189,10 @@ export const useAppStore = defineStore('app', () => {
     bookmarksFor,
     addBookmark,
     removeBookmark,
+    annotationsFor,
+    addAnnotation,
+    updateAnnotation,
+    removeAnnotation,
     bookById
   }
 })

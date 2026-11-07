@@ -38,7 +38,8 @@ export function createDefaultData(): AppData {
       stealth: { ...defaultStealthSettings },
       hotkeys: { ...defaultSettings.hotkeys }
     },
-    bookmarks: []
+    bookmarks: [],
+    annotations: []
   }
 }
 

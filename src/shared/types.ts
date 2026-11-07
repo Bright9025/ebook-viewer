@@ -31,6 +31,21 @@ export interface Bookmark {
   createdAt: number
 }
 
+export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink'
+
+export interface Annotation {
+  id: string
+  bookId: string
+  cfi: string
+  text: string
+  note: string
+  color: AnnotationColor
+  chapter: string
+  percent: number
+  createdAt: number
+  updatedAt: number
+}
+
 export interface ReaderSettings {
   font: ReaderFont
   fontSize: number
@@ -66,6 +81,7 @@ export interface AppData {
   books: Book[]
   settings: AppSettings
   bookmarks: Bookmark[]
+  annotations: Annotation[]
 }
 
 export interface ImportRequest {
@@ -116,6 +132,7 @@ export interface InitData {
   books: Book[]
   settings: AppSettings
   bookmarks: Bookmark[]
+  annotations: Annotation[]
 }
 
 export interface HotkeyStatus {

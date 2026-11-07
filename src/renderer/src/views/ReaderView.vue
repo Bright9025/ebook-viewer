@@ -2,12 +2,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Book as EpubBook, NavItem, Rendition } from 'epubjs'
-import type { Bookmark, ReaderSettings, ThemeMode } from '@shared/types'
+import type { Annotation, AnnotationColor, Bookmark, ReaderSettings, ThemeMode } from '@shared/types'
 import { defaultReaderSettings } from '@shared/defaults'
+import AnnotationDialog from '../components/AnnotationDialog.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ReaderPanel from '../components/ReaderPanel.vue'
 import ReaderSettingsPanel from '../components/ReaderSettingsPanel.vue'
+import SelectionMenu from '../components/SelectionMenu.vue'
 import { collectTopAnchor, isAnchorAtTop, isAnchorVisible, type ReaderAnchor } from '../lib/anchor'
+import { annotationColor } from '../lib/annotations'
 import { chapterLabelFor, flattenToc, loadBook, stripHash, toArrayBuffer, type FlatTocItem } from '../lib/epub'
 import { readerFontStacks, readerPalette } from '../lib/theme'
 import { errorMessage, toast } from '../lib/toast'
@@ -31,14 +34,29 @@ const currentHref = ref('')
 const percent = ref(0)
 const anchor = ref<ReaderAnchor | null>(null)
 const bookmarks = ref<Bookmark[]>([])
+const annotations = ref<Annotation[]>([])
 const panelOpen = ref(false)
-const panelTab = ref<'toc' | 'bookmarks'>('toc')
+const panelTab = ref<'toc' | 'bookmarks' | 'annotations'>('toc')
 const settingsOpen = ref(false)
 const chromeVisible = ref(true)
 const isFullscreen = ref(false)
 const maximized = ref(false)
 const locationsReady = ref(false)
 const draftReader = reactive<ReaderSettings>({ ...store.settings.reader })
+
+const selectionMenu = ref<{ open: boolean; x: number; y: number; cfi: string; text: string }>({
+  open: false,
+  x: 0,
+  y: 0,
+  cfi: '',
+  text: ''
+})
+const annotationDialogOpen = ref(false)
+const annotationQuote = ref('')
+const annotationNote = ref('')
+const annotationColorValue = ref<AnnotationColor>('yellow')
+const annotationCfi = ref('')
+const annotationEditing = ref<Annotation | null>(null)
 
 let offMaximized: (() => void) | null = null
 
@@ -76,6 +94,8 @@ onMounted(async () => {
   window.addEventListener('mousemove', onPointerMove)
   window.addEventListener('focus', onWindowFocus)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  document.addEventListener('mousedown', onDocumentMouseDown)
+  document.addEventListener('scroll', onDocumentScroll, true)
   window.addEventListener('beforeunload', saveProgress)
   maximized.value = await window.api.window.isMaximized()
   offMaximized = window.api.window.onMaximized((value) => {
@@ -93,6 +113,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onPointerMove)
   window.removeEventListener('focus', onWindowFocus)
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  document.removeEventListener('mousedown', onDocumentMouseDown)
+  document.removeEventListener('scroll', onDocumentScroll, true)
   window.removeEventListener('beforeunload', saveProgress)
   offMaximized?.()
   resizeObserver?.disconnect()
@@ -126,6 +148,7 @@ async function openBook(): Promise<void> {
     const metadata = (await book.loaded.metadata) as { title?: string; creator?: string }
     document.title = `${metadata?.title || bookTitle.value} · Ebook Viewer`
     bookmarks.value = store.bookmarksFor(bookId)
+    annotations.value = store.annotationsFor(bookId)
 
     await nextTick()
     const el = viewerEl.value
@@ -147,6 +170,8 @@ async function openBook(): Promise<void> {
     await wait(180)
     instance.on('relocated', onRelocated)
     bindIframeEvents()
+    await wait(260)
+    applyAnnotations()
     captureAnchor()
     updateFromLocation()
     loading.value = false
@@ -381,6 +406,7 @@ async function toggleTheme(): Promise<void> {
 async function nextPage(): Promise<void> {
   const instance = rendition.value
   if (!instance) return
+  closeSelectionMenu()
   try {
     await instance.next()
   } catch (error) {
@@ -391,6 +417,7 @@ async function nextPage(): Promise<void> {
 async function prevPage(): Promise<void> {
   const instance = rendition.value
   if (!instance) return
+  closeSelectionMenu()
   try {
     await instance.prev()
   } catch (error) {
@@ -403,6 +430,7 @@ async function goHref(href: string): Promise<void> {
   if (!instance) return
   panelOpen.value = false
   anchor.value = null
+  closeSelectionMenu()
   try {
     await instance.display(href)
   } catch (error) {
@@ -419,6 +447,7 @@ async function goCfi(cfi: string): Promise<void> {
   if (!instance) return
   panelOpen.value = false
   anchor.value = null
+  closeSelectionMenu()
   try {
     await instance.display(cfi)
   } catch (error) {
@@ -460,6 +489,189 @@ async function removeBookmark(id: string): Promise<void> {
   }
 }
 
+function onIframeContextMenu(event: MouseEvent, contents: any): void {
+  const selection = contents.window?.getSelection?.() as Selection | null
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return
+  const text = selection.toString().replace(/\s+/g, ' ').trim()
+  if (!text) return
+  let cfi = ''
+  try {
+    cfi = contents.cfiFromRange(selection.getRangeAt(0)) as string
+  } catch (error) {
+    console.warn('[reader] cannot build selection cfi', error)
+    return
+  }
+  if (!cfi) return
+  event.preventDefault()
+  event.stopPropagation()
+  const frame = contents.window?.frameElement as HTMLIFrameElement | null
+  if (!frame) return
+  const frameRect = frame.getBoundingClientRect()
+  const rangeRect = selection.getRangeAt(0).getBoundingClientRect()
+  const menuWidth = 208
+  const menuHeight = 170
+  let x = frameRect.left + rangeRect.left
+  let y = frameRect.top + rangeRect.bottom + 8
+  x = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8))
+  if (y + menuHeight > window.innerHeight - 8) {
+    y = frameRect.top + rangeRect.top - menuHeight - 8
+  }
+  y = Math.max(8, y)
+  selectionMenu.value = { open: true, x, y, cfi, text }
+  keepChrome()
+}
+
+function closeSelectionMenu(): void {
+  if (selectionMenu.value.open) selectionMenu.value.open = false
+}
+
+function onDocumentMouseDown(event: MouseEvent): void {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.selection-menu')) return
+  closeSelectionMenu()
+}
+
+function onDocumentScroll(): void {
+  closeSelectionMenu()
+}
+
+function copySelection(): void {
+  const text = selectionMenu.value.text
+  if (!text) return
+  window.api.app.copyText(text)
+  closeSelectionMenu()
+  toast('已复制选中文字', 'success')
+}
+
+async function highlightSelection(color: AnnotationColor): Promise<void> {
+  const selection = selectionMenu.value
+  if (!selection.open || !selection.cfi) return
+  closeSelectionMenu()
+  try {
+    const annotation = await store.addAnnotation({
+      bookId,
+      cfi: selection.cfi,
+      text: selection.text,
+      note: '',
+      color,
+      chapter: chapterTitle.value,
+      percent: percent.value
+    })
+    annotations.value = [annotation, ...annotations.value]
+    applyAnnotation(annotation)
+    toast('已添加高亮', 'success')
+  } catch (error) {
+    toast(`高亮失败：${errorMessage(error)}`, 'error')
+  }
+}
+
+function openNoteDialog(): void {
+  const selection = selectionMenu.value
+  if (!selection.open) return
+  annotationEditing.value = null
+  annotationCfi.value = selection.cfi
+  annotationQuote.value = selection.text
+  annotationNote.value = ''
+  annotationColorValue.value = 'yellow'
+  closeSelectionMenu()
+  annotationDialogOpen.value = true
+  keepChrome()
+}
+
+function editAnnotation(annotation: Annotation): void {
+  annotationEditing.value = annotation
+  annotationCfi.value = annotation.cfi
+  annotationQuote.value = annotation.text
+  annotationNote.value = annotation.note
+  annotationColorValue.value = annotation.color
+  annotationDialogOpen.value = true
+  keepChrome()
+}
+
+async function saveAnnotation(payload: { note: string; color: AnnotationColor }): Promise<void> {
+  try {
+    if (annotationEditing.value) {
+      const updated = await store.updateAnnotation(annotationEditing.value.id, payload)
+      annotations.value = annotations.value.map((item) => (item.id === updated.id ? updated : item))
+      applyAnnotation(updated)
+      toast('标注已更新', 'success')
+    } else {
+      const annotation = await store.addAnnotation({
+        bookId,
+        cfi: annotationCfi.value,
+        text: annotationQuote.value,
+        note: payload.note,
+        color: payload.color,
+        chapter: chapterTitle.value,
+        percent: percent.value
+      })
+      annotations.value = [annotation, ...annotations.value]
+      applyAnnotation(annotation)
+      toast(payload.note ? '已保存标注' : '已添加高亮', 'success')
+    }
+    annotationDialogOpen.value = false
+    annotationEditing.value = null
+  } catch (error) {
+    toast(`保存标注失败：${errorMessage(error)}`, 'error')
+  }
+}
+
+async function removeAnnotation(id: string): Promise<void> {
+  const annotation = annotations.value.find((item) => item.id === id)
+  if (!annotation) return
+  try {
+    await store.removeAnnotation(id)
+    annotations.value = annotations.value.filter((item) => item.id !== id)
+    removeAnnotationHighlight(annotation.cfi)
+    if (annotationEditing.value?.id === id) {
+      annotationDialogOpen.value = false
+      annotationEditing.value = null
+    }
+    toast('已删除标注')
+  } catch (error) {
+    toast(`删除标注失败：${errorMessage(error)}`, 'error')
+  }
+}
+
+function applyAnnotation(annotation: Annotation): void {
+  const instance = rendition.value as any
+  if (!instance?.annotations) return
+  try {
+    instance.annotations.remove(annotation.cfi, 'highlight')
+  } catch {
+    /* ignore */
+  }
+  try {
+    const color = annotationColor(annotation.color)
+    instance.annotations.highlight(
+      annotation.cfi,
+      { id: annotation.id },
+      () => editAnnotation(annotation),
+      'reader-annotation',
+      {
+        fill: color.swatch,
+        'fill-opacity': '0.38'
+      }
+    )
+  } catch (error) {
+    console.warn('[reader] failed to render annotation', error)
+  }
+}
+
+function applyAnnotations(): void {
+  for (const annotation of annotations.value) applyAnnotation(annotation)
+}
+
+function removeAnnotationHighlight(cfi: string): void {
+  const instance = rendition.value as any
+  if (!instance?.annotations) return
+  try {
+    instance.annotations.remove(cfi, 'highlight')
+  } catch {
+    /* ignore */
+  }
+}
+
 async function toggleStealth(): Promise<void> {
   if (store.stealthVisible) {
     window.api.stealth.hide()
@@ -492,7 +704,7 @@ function closeWindow(): void {
   window.api.window.close()
 }
 
-function openPanel(tab: 'toc' | 'bookmarks'): void {
+function openPanel(tab: 'toc' | 'bookmarks' | 'annotations'): void {
   if (panelOpen.value && panelTab.value === tab) {
     panelOpen.value = false
     return
@@ -551,6 +763,12 @@ function onKeyDown(event: KeyboardEvent): void {
       showChrome()
       break
     case 'Escape':
+      closeSelectionMenu()
+      if (annotationDialogOpen.value) {
+        annotationDialogOpen.value = false
+        annotationEditing.value = null
+        break
+      }
       closePanels()
       break
     case 'F11':
@@ -571,6 +789,7 @@ function onWheel(event: WheelEvent): void {
 }
 
 function onIframeClick(): void {
+  closeSelectionMenu()
   showChrome()
 }
 
@@ -586,6 +805,7 @@ function bindIframeEvents(): void {
     doc.addEventListener('keydown', onKeyDown)
     doc.addEventListener('wheel', onWheel, { passive: false })
     doc.addEventListener('click', onIframeClick)
+    doc.addEventListener('contextmenu', (event) => onIframeContextMenu(event, item))
   }
 }
 
@@ -720,6 +940,16 @@ function wait(ms: number): Promise<void> {
           <AppIcon name="bookmark" :size="17" />
           <span v-if="bookmarks.length" class="dot" />
         </button>
+        <button
+          class="chrome-button"
+          :class="{ active: panelOpen && panelTab === 'annotations' }"
+          type="button"
+          title="标注"
+          @click="openPanel('annotations')"
+        >
+          <AppIcon name="highlighter" :size="17" />
+          <span v-if="annotations.length" class="dot" />
+        </button>
         <button class="chrome-button reader-optional" :class="{ active: isBookmarked }" type="button" title="标记当前页" @click="toggleBookmark">
           <AppIcon name="bookmark-plus" :size="17" />
         </button>
@@ -784,6 +1014,7 @@ function wait(ms: number): Promise<void> {
       :tab="panelTab"
       :toc="toc"
       :bookmarks="bookmarks"
+      :annotations="annotations"
       :active-href="currentHref"
       :percent="percent"
       @close="closePanels"
@@ -791,6 +1022,28 @@ function wait(ms: number): Promise<void> {
       @select-href="goHref"
       @select-cfi="goCfi"
       @remove-bookmark="removeBookmark"
+      @remove-annotation="removeAnnotation"
+    />
+
+    <SelectionMenu
+      :open="selectionMenu.open"
+      :x="selectionMenu.x"
+      :y="selectionMenu.y"
+      @copy="copySelection"
+      @highlight="highlightSelection"
+      @note="openNoteDialog"
+      @close="closeSelectionMenu"
+    />
+
+    <AnnotationDialog
+      :open="annotationDialogOpen"
+      :quote="annotationQuote"
+      :note="annotationNote"
+      :color="annotationColorValue"
+      :editing="Boolean(annotationEditing)"
+      @save="saveAnnotation"
+      @remove="annotationEditing && removeAnnotation(annotationEditing.id)"
+      @close="annotationDialogOpen = false; annotationEditing = null"
     />
 
     <ReaderSettingsPanel

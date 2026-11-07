@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { Api } from '../shared/api'
 import type {
+  Annotation,
+  AnnotationColor,
   AppSettings,
   Book,
   HotkeyStatus,
@@ -42,6 +44,13 @@ const api: Api = {
     add: (input) => ipcRenderer.invoke('bookmarks:add', input),
     remove: (id) => ipcRenderer.invoke('bookmarks:remove', id)
   },
+  annotations: {
+    list: (bookId) => ipcRenderer.invoke('annotations:list', bookId) as Promise<Annotation[]>,
+    add: (input) => ipcRenderer.invoke('annotations:add', input) as Promise<Annotation>,
+    update: (id, patch: { note?: string; color?: AnnotationColor }) =>
+      ipcRenderer.invoke('annotations:update', id, patch) as Promise<Annotation>,
+    remove: (id) => ipcRenderer.invoke('annotations:remove', id) as Promise<void>
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
@@ -66,7 +75,8 @@ const api: Api = {
     version: () => ipcRenderer.invoke('app:version') as Promise<string>,
     showMain: () => ipcRenderer.send('app:show-main'),
     quit: () => ipcRenderer.send('app:quit'),
-    captureScreen: () => ipcRenderer.invoke('app:capture-screen') as Promise<string>
+    captureScreen: () => ipcRenderer.invoke('app:capture-screen') as Promise<string>,
+    copyText: (text) => ipcRenderer.send('app:copy-text', text)
   },
   events: {
     onRemoteProgress: on<ProgressPayload>('events:remote-progress'),

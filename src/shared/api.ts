@@ -1,4 +1,6 @@
 import type {
+  Annotation,
+  AnnotationColor,
   AppSettings,
   Book,
   Bookmark,
@@ -37,6 +39,13 @@ export interface BookmarksApi {
   remove(id: string): Promise<void>
 }
 
+export interface AnnotationsApi {
+  list(bookId: string): Promise<Annotation[]>
+  add(input: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>): Promise<Annotation>
+  update(id: string, patch: { note?: string; color?: AnnotationColor }): Promise<Annotation>
+  remove(id: string): Promise<void>
+}
+
 export interface WindowApi {
   minimize(): void
   toggleMaximize(): void
@@ -64,6 +73,7 @@ export interface AppApi {
   showMain(): void
   quit(): void
   captureScreen(): Promise<string>
+  copyText(text: string): void
 }
 
 export interface EventsApi {
@@ -78,6 +88,7 @@ export interface Api {
   settings: SettingsApi
   progress: ProgressApi
   bookmarks: BookmarksApi
+  annotations: AnnotationsApi
   window: WindowApi
   stealth: StealthApi
   app: AppApi

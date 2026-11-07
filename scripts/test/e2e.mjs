@@ -148,6 +148,97 @@ try {
   })
   console.log(`  reader background: ${iframeBackground}`)
 
+  const selectedText = await page.evaluate(() => {
+    const iframe = document.querySelector('.reader-viewer iframe')
+    const doc = iframe?.contentDocument
+    if (!doc) return ''
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+    let node = null
+    while (walker.nextNode()) {
+      if ((walker.currentNode.nodeValue || '').trim().length > 12) {
+        node = walker.currentNode
+        break
+      }
+    }
+    if (!node) return ''
+    const text = node.nodeValue || ''
+    const start = Math.max(0, text.search(/[^\s]/))
+    const range = doc.createRange()
+    range.setStart(node, start)
+    range.setEnd(node, Math.min(text.length, start + 12))
+    const selection = doc.defaultView.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+    const rect = range.getBoundingClientRect()
+    doc.body.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        clientX: rect.left + 1,
+        clientY: rect.top + 1
+      })
+    )
+    return selection.toString()
+  })
+  assert(Boolean(selectedText), 'text can be selected in the reader')
+  await page.waitForSelector('.selection-menu')
+  await page.locator('.selection-menu .color-swatch').first().click()
+  await sleep(600)
+  const savedAnnotations = await page.evaluate((id) => window.api.annotations.list(id), bookId)
+  assert(savedAnnotations.length === 1, 'text highlight is persisted')
+  assert(
+    (await page.evaluate(() => document.querySelectorAll('.reader-viewer svg g[data-id]').length)) > 0,
+    'highlight is rendered in the reader'
+  )
+  await page.evaluate(() => document.querySelector('button[title="标注"]')?.click())
+  await sleep(300)
+  assert((await page.locator('.annotation-item').count()) === 1, 'annotation appears in the panel')
+  await page.evaluate(() => document.querySelector('.panel-scrim')?.click())
+  await sleep(200)
+
+  await page.evaluate(() => {
+    const iframe = document.querySelector('.reader-viewer iframe')
+    const doc = iframe?.contentDocument
+    if (!doc) return
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+    let node = null
+    while (walker.nextNode()) {
+      if ((walker.currentNode.nodeValue || '').trim().length > 12) {
+        node = walker.currentNode
+        break
+      }
+    }
+    if (!node) return
+    const text = node.nodeValue || ''
+    const start = Math.max(0, text.search(/[^\s]/))
+    const range = doc.createRange()
+    range.setStart(node, start)
+    range.setEnd(node, Math.min(text.length, start + 8))
+    const selection = doc.defaultView.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+    const rect = range.getBoundingClientRect()
+    doc.body.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        clientX: rect.left + 1,
+        clientY: rect.top + 1
+      })
+    )
+  })
+  await page.waitForSelector('.selection-menu')
+  await page.locator('.selection-menu .menu-item').filter({ hasText: '添加笔记' }).click()
+  await page.locator('#annotation-note').fill('这是一条测试笔记')
+  await page.locator('.annotation-dialog .primary-button').click()
+  await sleep(600)
+  const notedAnnotations = await page.evaluate((id) => window.api.annotations.list(id), bookId)
+  assert(notedAnnotations.some((item) => item.note === '这是一条测试笔记'), 'annotation note is persisted')
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+
   const cfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
   const opened = await page.evaluate(
     async ({ bookId, cfi }) => window.api.stealth.open({ bookId, cfi }),

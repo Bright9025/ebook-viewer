@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AppData, AppSettings, Book, Bookmark, ReadingProgress } from '../shared/types'
+import type { Annotation, AppData, AppSettings, Book, Bookmark, ReadingProgress } from '../shared/types'
 import { createDefaultData, mergeSettings } from '../shared/defaults'
 
 export class Store {
@@ -28,7 +28,8 @@ export class Store {
       this.data = {
         books: Array.isArray(parsed.books) ? parsed.books.map(normalizeBook) : [],
         settings: mergeSettings(defaults.settings, parsed.settings ?? {}),
-        bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : []
+        bookmarks: Array.isArray(parsed.bookmarks) ? parsed.bookmarks : [],
+        annotations: Array.isArray(parsed.annotations) ? parsed.annotations.map(normalizeAnnotation) : []
       }
     } catch (error) {
       console.error('[store] failed to read data.json:', error)
@@ -62,6 +63,7 @@ export class Store {
     if (!book) return
     this.data.books = this.data.books.filter((item) => item.id !== id)
     this.data.bookmarks = this.data.bookmarks.filter((item) => item.bookId !== id)
+    this.data.annotations = this.data.annotations.filter((item) => item.bookId !== id)
     if (this.data.settings.lastBookId === id) this.data.settings.lastBookId = null
     try {
       await fs.rm(join(this.booksDir, book.fileName), { force: true })
@@ -108,6 +110,32 @@ export class Store {
     await this.saveNow()
   }
 
+  annotationsFor(bookId: string): Annotation[] {
+    return this.data.annotations
+      .filter((annotation) => annotation.bookId === bookId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  }
+
+  async addAnnotation(annotation: Annotation): Promise<void> {
+    this.data.annotations = [annotation, ...this.data.annotations.filter((item) => item.id !== annotation.id)]
+    await this.saveNow()
+  }
+
+  async updateAnnotation(id: string, patch: Partial<Pick<Annotation, 'note' | 'color'>>): Promise<Annotation | null> {
+    const annotation = this.data.annotations.find((item) => item.id === id)
+    if (!annotation) return null
+    if (typeof patch.note === 'string') annotation.note = patch.note
+    if (patch.color) annotation.color = patch.color
+    annotation.updatedAt = Date.now()
+    await this.saveNow()
+    return annotation
+  }
+
+  async removeAnnotation(id: string): Promise<void> {
+    this.data.annotations = this.data.annotations.filter((item) => item.id !== id)
+    await this.saveNow()
+  }
+
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
     this.data.settings = mergeSettings(this.data.settings, patch)
     await this.saveNow()
@@ -151,8 +179,25 @@ export class Store {
   }
 }
 
-function normalizeBook(value: unknown): Book {
-  const book = value as Partial<Book>
+function normalizeAnnotation(value: unknown): Annotation {
+  const annotation = value as Partial<Annotation>
+  const colors = ['yellow', 'green', 'blue', 'pink'] as const
+  const color = colors.includes(annotation.color as (typeof colors)[number]) ? annotation.color! : 'yellow'
+  return {
+    id: String(annotation.id ?? ''),
+    bookId: String(annotation.bookId ?? ''),
+    cfi: String(annotation.cfi ?? ''),
+    text: String(annotation.text ?? ''),
+    note: String(annotation.note ?? ''),
+    color,
+    chapter: String(annotation.chapter ?? ''),
+    percent: Number(annotation.percent ?? 0),
+    createdAt: Number(annotation.createdAt ?? Date.now()),
+    updatedAt: Number(annotation.updatedAt ?? annotation.createdAt ?? Date.now())
+  }
+}
+
+function normalizeBook(value: unknown): Book {  const book = value as Partial<Book>
   return {
     id: String(book.id ?? ''),
     title: String(book.title ?? '未命名'),

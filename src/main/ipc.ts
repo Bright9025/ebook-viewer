@@ -1,8 +1,8 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, nativeTheme, screen } from 'electron'
+import { app, BrowserWindow, clipboard, desktopCapturer, dialog, ipcMain, nativeTheme, screen } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import type { AppSettings, Bookmark, ProgressPayload, StealthContextPayload } from '../shared/types'
+import type { Annotation, AppSettings, Bookmark, ProgressPayload, StealthContextPayload } from '../shared/types'
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
@@ -26,7 +26,8 @@ export function registerIpc(): void {
     return {
       books: store.books,
       settings: store.settings,
-      bookmarks: store.data.bookmarks
+      bookmarks: store.data.bookmarks,
+      annotations: store.data.annotations
     }
   })
 
@@ -96,6 +97,31 @@ export function registerIpc(): void {
     await getStore().removeBookmark(id)
   })
 
+  ipcMain.handle('annotations:list', (_event, bookId: string) => getStore().annotationsFor(bookId))
+
+  ipcMain.handle('annotations:add', async (_event, input: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!input?.bookId || !input.cfi || !input.text) throw new Error('INVALID_ANNOTATION')
+    const now = Date.now()
+    const annotation: Annotation = {
+      ...input,
+      id: randomUUID(),
+      createdAt: now,
+      updatedAt: now
+    }
+    await getStore().addAnnotation(annotation)
+    return annotation
+  })
+
+  ipcMain.handle('annotations:update', async (_event, id: string, patch: { note?: string; color?: Annotation['color'] }) => {
+    const annotation = await getStore().updateAnnotation(id, patch ?? {})
+    if (!annotation) throw new Error('ANNOTATION_NOT_FOUND')
+    return annotation
+  })
+
+  ipcMain.handle('annotations:remove', async (_event, id: string) => {
+    await getStore().removeAnnotation(id)
+  })
+
   ipcMain.handle('stealth:open', async (_event, context: StealthContextPayload) => {
     return openStealth(context)
   })
@@ -145,6 +171,9 @@ export function registerIpc(): void {
   })
 
   ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.on('app:copy-text', (_event, text: string) => {
+    if (typeof text === 'string' && text) clipboard.writeText(text)
+  })
   ipcMain.handle('app:capture-screen', async () => {
     if (process.env.EBOOK_DEBUG !== '1') throw new Error('DEBUG_DISABLED')
     const display = screen.getPrimaryDisplay()

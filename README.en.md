@@ -14,6 +14,7 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 
 - 📚 **Local library** – Import EPUB files by button or drag-and-drop; extract covers, titles and authors; remember recently read books and progress.
 - 📖 **Focused reader** – Horizontal pagination, table of contents, bookmarks, font size / line height / margins / font family / justification.
+- ✍️ **Text annotations** – Select text, then right-click to copy, add a four-color highlight or a note. Annotations are saved per book and can be jumped to, edited or deleted from the sidebar.
 - 🌗 **Light & dark** – Switch the UI and book typography together, or follow the system theme; restore the previous theme on launch without a white flash.
 - 🪟 **Resizable window** – Re-paginate when the window, font size or margins change, keeping the previous anchor sentence on the current page without reloading the book.
 - 🫥 **Stealth mode** – A small transparent, topmost window whose text color follows the pixels underneath, character by character. Drag it, resize it, hide it or exit it at any time.
@@ -131,9 +132,10 @@ For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0
 
 1. Launch the app, then click **Import EPUB** or drag an EPUB into the library.
 2. Click a cover to start reading. Locations are generated on first open and progress is saved automatically.
-3. The top bar opens the table of contents, adds bookmarks, adjusts typography, switches themes, enters fullscreen, and provides minimize / maximize / close controls.
-4. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
-5. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
+3. The top bar opens the table of contents, annotation list, bookmarks, adjusts typography, switches themes, enters fullscreen, and provides minimize / maximize / close controls.
+4. Select text and right-click to copy, add a four-color highlight or a note; click an existing highlight to edit or delete it.
+5. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
+6. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
 
 ## ⌨️ Shortcuts
 
@@ -196,6 +198,15 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 4. Do not capture a new anchor during reflow, so repeated resizing does not accumulate drift. Font size, line height and margin changes use the same path.
 
 > The current implementation guarantees that the anchor sentence stays on the current page. Because EPUB pagination can only split at column/page boundaries, the anchor sentence is not always the literal first line. Locking the first line character-by-character would require a continuous-scroll layout or a custom paginator; that is not implemented yet.
+
+## ✍️ Text Annotations
+
+The interaction follows the core flow in the W3C [EPUB Annotations Use Cases and Requirements](https://www.w3.org/TR/epub-anno-ucr/): select text, then highlight or add a note with a chosen color.
+
+- Select text in the reader and right-click: copy, highlight in yellow / green / blue / pink, or add a note.
+- Each highlight stores its CFI, quote, chapter, progress and color; click a highlight to edit its note/color or delete it.
+- The top-bar **Annotations** button opens a sidebar with all annotations, jump targets and delete actions.
+- Notes are plain text and stored locally in `data.json`. Import/export, annotation threads and image annotations are not included in this version.
 
 ## 🫥 Stealth Mode
 

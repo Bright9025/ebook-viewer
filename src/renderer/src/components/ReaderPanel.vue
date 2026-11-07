@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import type { Bookmark } from '@shared/types'
+import type { Annotation, Bookmark } from '@shared/types'
+import { annotationColor } from '../lib/annotations'
 import type { FlatTocItem } from '../lib/epub'
 import AppIcon from './AppIcon.vue'
 
 const props = defineProps<{
   open: boolean
-  tab: 'toc' | 'bookmarks'
+  tab: 'toc' | 'bookmarks' | 'annotations'
   toc: FlatTocItem[]
   bookmarks: Bookmark[]
+  annotations: Annotation[]
   activeHref: string
   percent: number
 }>()
 
 const emit = defineEmits<{
   close: []
-  'update:tab': [value: 'toc' | 'bookmarks']
+  'update:tab': [value: 'toc' | 'bookmarks' | 'annotations']
   selectHref: [href: string]
   selectCfi: [cfi: string]
   removeBookmark: [id: string]
+  removeAnnotation: [id: string]
 }>()
 
 function isActive(href: string): boolean {
@@ -44,6 +47,10 @@ function formatPercent(value: number): string {
                 书签
                 <span v-if="bookmarks.length" class="count">{{ bookmarks.length }}</span>
               </button>
+              <button :class="{ active: tab === 'annotations' }" type="button" @click="emit('update:tab', 'annotations')">
+                标注
+                <span v-if="annotations.length" class="count">{{ annotations.length }}</span>
+              </button>
             </div>
             <button class="icon-btn" type="button" title="关闭" @click="emit('close')">
               <AppIcon name="close" :size="16" />
@@ -67,7 +74,7 @@ function formatPercent(value: number): string {
               </button>
             </template>
 
-            <template v-else>
+            <template v-else-if="tab === 'bookmarks'">
               <div v-if="!bookmarks.length" class="panel-empty">
                 还没有书签。<br />阅读时点击顶部书签按钮即可记录当前页。
               </div>
@@ -83,10 +90,35 @@ function formatPercent(value: number): string {
                 </button>
               </div>
             </template>
+
+            <template v-else>
+              <div v-if="!annotations.length" class="panel-empty">
+                还没有标注。<br />选中正文后右键，可复制、添加高亮或笔记。
+              </div>
+              <div
+                v-for="annotation in annotations"
+                :key="annotation.id"
+                class="annotation-item"
+                :style="{ '--annotation-color': annotationColor(annotation.color).swatch }"
+              >
+                <button class="annotation-main" type="button" @click="emit('selectCfi', annotation.cfi)">
+                  <span class="annotation-quote">{{ annotation.text }}</span>
+                  <span v-if="annotation.note" class="annotation-note">{{ annotation.note }}</span>
+                  <span class="annotation-meta">
+                    {{ annotation.chapter || '正文' }} · {{ formatPercent(annotation.percent) }}
+                  </span>
+                </button>
+                <button class="bookmark-remove" type="button" title="删除标注" @click="emit('removeAnnotation', annotation.id)">
+                  <AppIcon name="trash" :size="13" />
+                </button>
+              </div>
+            </template>
           </div>
 
           <footer class="drawer-foot">
-            <span>{{ tab === 'toc' ? `${toc.length} 个章节` : `${bookmarks.length} 个书签` }}</span>
+            <span v-if="tab === 'toc'">{{ toc.length }} 个章节</span>
+            <span v-else-if="tab === 'bookmarks'">{{ bookmarks.length }} 个书签</span>
+            <span v-else>{{ annotations.length }} 条标注</span>
             <span>当前 {{ formatPercent(percent) }}</span>
           </footer>
         </aside>
@@ -266,6 +298,56 @@ function formatPercent(value: number): string {
 
 .bookmark-remove:hover {
   color: var(--danger);
+}
+
+.annotation-item {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--annotation-color, var(--accent));
+}
+
+.annotation-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px 10px 13px 17px;
+  text-align: left;
+}
+
+.annotation-quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--ink);
+  font-family: var(--font-reading, Georgia, serif);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.annotation-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  padding-left: 7px;
+  border-left: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.annotation-meta {
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.annotation-main:hover .annotation-quote {
+  color: var(--accent);
 }
 
 .drawer-foot {
