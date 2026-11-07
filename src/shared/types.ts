@@ -31,7 +31,7 @@ export interface Bookmark {
   createdAt: number
 }
 
-export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink'
+export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'black'
 export type AnnotationStyle = 'highlight' | 'underline' | 'wavy' | 'none'
 
 export interface Annotation {

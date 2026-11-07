@@ -652,36 +652,21 @@ function applyAnnotation(annotation: Annotation): void {
   }
   if (annotation.style === 'none') return
   const color = annotationColor(annotation.color)
-  if (annotation.style === 'wavy') {
+  if (annotation.style === 'wavy' || annotation.style === 'underline') {
     applyWavyAnnotation(annotation)
     return
   }
   try {
-    if (annotation.style === 'underline') {
-      instance.annotations.underline(
-        annotation.cfi,
-        { id: annotation.id },
-        () => editAnnotation(annotation),
-        'reader-annotation',
-        {
-          stroke: color.swatch,
-          'stroke-opacity': '0.95',
-          'stroke-width': '2',
-          'mix-blend-mode': 'normal'
-        }
-      )
-    } else {
-      instance.annotations.highlight(
-        annotation.cfi,
-        { id: annotation.id },
-        () => editAnnotation(annotation),
-        'reader-annotation',
-        {
-          fill: color.swatch,
-          'fill-opacity': '0.38'
-        }
-      )
-    }
+    instance.annotations.highlight(
+      annotation.cfi,
+      { id: annotation.id },
+      () => editAnnotation(annotation),
+      'reader-annotation',
+      {
+        fill: color.swatch,
+        'fill-opacity': '0.38'
+      }
+    )
   } catch (error) {
     console.warn('[reader] failed to render annotation', error)
   }
@@ -715,7 +700,7 @@ function applyWavyAnnotation(annotation: Annotation): void {
     const color = annotationColor(annotation.color)
     style.textContent += `::highlight(${name}) {
       text-decoration-line: underline;
-      text-decoration-style: wavy;
+      text-decoration-style: ${annotation.style === 'wavy' ? 'wavy' : 'solid'};
       text-decoration-color: ${color.swatch};
       text-decoration-thickness: 1.6px;
       text-underline-offset: 3px;
@@ -755,7 +740,7 @@ function applyAnnotations(): void {
 function refreshWavyAnnotations(): void {
   clearWavyHighlights()
   for (const annotation of annotations.value) {
-    if (annotation.style === 'wavy') applyWavyAnnotation(annotation)
+    if (annotation.style === 'wavy' || annotation.style === 'underline') applyWavyAnnotation(annotation)
   }
 }
 
@@ -915,6 +900,8 @@ function bindIframeEvents(): void {
     const doc = item?.document
     if (!doc || boundDocs.has(doc)) continue
     boundDocs.add(doc)
+    doc.documentElement.spellcheck = false
+    doc.body.spellcheck = false
     doc.addEventListener('mousemove', onPointerMove, { passive: true })
     doc.addEventListener('keydown', onKeyDown)
     doc.addEventListener('wheel', onWheel, { passive: false })

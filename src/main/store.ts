@@ -182,7 +182,7 @@ export class Store {
 
 function normalizeAnnotation(value: unknown): Annotation {
   const annotation = value as Partial<Annotation>
-  const colors = ['yellow', 'green', 'blue', 'pink'] as const
+  const colors = ['yellow', 'green', 'blue', 'pink', 'black'] as const
   const color = colors.includes(annotation.color as (typeof colors)[number]) ? annotation.color! : 'yellow'
   const styles = ['highlight', 'underline', 'wavy', 'none'] as const
   const style = styles.includes(annotation.style as (typeof styles)[number]) ? annotation.style! : 'highlight'
