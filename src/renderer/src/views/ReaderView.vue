@@ -88,6 +88,7 @@ watch(
   () => store.theme,
   () => {
     applyReaderTheme()
+    if (rendition.value) refreshWavyAnnotations()
   }
 )
 
@@ -529,6 +530,19 @@ function closeSelectionMenu(): void {
   if (selectionMenu.value.open) selectionMenu.value.open = false
 }
 
+function clearTextSelection(): void {
+  const instance = rendition.value
+  if (!instance) return
+  const list = instance.getContents() as unknown as Array<{ window?: Window }>
+  for (const contents of list) {
+    try {
+      contents.window?.getSelection()?.removeAllRanges()
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function onDocumentMouseDown(event: MouseEvent): void {
   const target = event.target as HTMLElement | null
   if (target?.closest('.selection-menu')) return
@@ -544,6 +558,7 @@ function copySelection(): void {
   if (!text) return
   window.api.app.copyText(text)
   closeSelectionMenu()
+  clearTextSelection()
   toast('已复制选中文字', 'success')
 }
 
@@ -551,6 +566,7 @@ async function annotateSelection(color: AnnotationColor, style: AnnotationStyle)
   const selection = selectionMenu.value
   if (!selection.open || !selection.cfi) return
   closeSelectionMenu()
+  clearTextSelection()
   try {
     const annotation = await store.addAnnotation({
       bookId,
@@ -580,6 +596,7 @@ function openNoteDialog(): void {
   annotationColorValue.value = 'yellow'
   annotationStyleValue.value = 'highlight'
   closeSelectionMenu()
+  clearTextSelection()
   annotationDialogOpen.value = true
   keepChrome()
 }
@@ -671,7 +688,6 @@ function applyAnnotation(annotation: Annotation): void {
     console.warn('[reader] failed to render annotation', error)
   }
 }
-
 function applyWavyAnnotation(annotation: Annotation): void {
   const instance = rendition.value as any
   const list = (instance?.getContents?.() ?? []) as any[]
@@ -698,10 +714,12 @@ function applyWavyAnnotation(annotation: Annotation): void {
       doc.head.appendChild(style)
     }
     const color = annotationColor(annotation.color)
+    const decorationColor =
+      annotation.color === 'black' && store.theme === 'dark' ? '#dedad2' : color.swatch
     style.textContent += `::highlight(${name}) {
       text-decoration-line: underline;
       text-decoration-style: ${annotation.style === 'wavy' ? 'wavy' : 'solid'};
-      text-decoration-color: ${color.swatch};
+      text-decoration-color: ${decorationColor};
       text-decoration-thickness: 1.6px;
       text-underline-offset: 3px;
     }\n`
