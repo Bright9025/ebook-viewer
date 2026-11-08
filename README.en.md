@@ -6,15 +6,22 @@
 
 A focused local EPUB reader with a library, table of contents, bookmarks, light/dark themes, and a transparent always-on-top “stealth” reading window that adapts to the desktop behind it.
 
-> Current version: **v1.0.3** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> Current version: **v1.0.4** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 What's New in v1.0.3
+## 🆕 What's New in v1.0.4
 
-- **Fixes library/progress loss during updates**: books and settings now live in a separate per-user data directory that installers do not delete; both the installer and first launch migrate data from the old `data/` folder.
-- **Automatic updates**: check GitHub Releases on startup, download in the background and install on quit. Settings also provides a manual check and an immediate restart-and-install action.
-- GitHub publish and update metadata added to the packaging configuration.
+- **No silent updates**: the first launch only checks and records an available version. The next launch asks whether to download it; after download, the app asks again before restarting. Quitting never installs automatically.
+- **Updates keep the original install directory**: the updater uses the install location stored in the registry, so program and library directories are not moved.
+- The prompt names the source (GitHub Releases) and checksum verification; library data, books and progress are untouched.
+- v1.0.3 data migration and updater foundations remain.
+
+### v1.0.3 highlights
+
+- Library data moved to `%LOCALAPPDATA%\Ebook Viewer\`, so updates no longer overwrite books or progress.
+- Installer backs up old `data/` before upgrading; first launch has a fallback migration.
+- `electron-updater` integration and a manual update check in Settings.
 
 ### v1.0.2 highlights
 
@@ -143,14 +150,14 @@ release/
 │   ├── EbookViewerCore.exe       # Electron app
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Chromium profile (library data is not stored here)
-├── Ebook-Viewer-1.0.3-x64.exe    # NSIS installer
-├── Ebook-Viewer-1.0.3-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.3-x64-portable.zip
+├── Ebook-Viewer-1.0.4-x64.exe    # NSIS installer
+├── Ebook-Viewer-1.0.4-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.4-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder debug info (ignored)
 ```
 
-For a GitHub Release, upload `Ebook-Viewer-1.0.3-x64.exe` and `Ebook-Viewer-v1.0.3-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
+For a GitHub Release, upload `Ebook-Viewer-1.0.4-x64.exe` and `Ebook-Viewer-v1.0.4-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
@@ -190,7 +197,7 @@ Contents:
 - `fonts/` – imported local reading fonts
 - `exports/` – fallback destination when a selected export folder is blocked
 
-When upgrading from v1.0.2 to v1.0.3, the installer copies the old install folder's `data/` into `%LOCALAPPDATA%\Ebook Viewer\` before removing it; a first-launch migration also handles older portable copies.
+When upgrading from v1.0.2 to v1.0.3 / v1.0.4, the installer copies the old install folder's `data/` into `%LOCALAPPDATA%\Ebook Viewer\` before removing it; a first-launch migration also handles older portable copies.
 
 Override the location with the `EBOOK_USER_DATA` environment variable.
 
@@ -205,7 +212,7 @@ Override the location with the `EBOOK_USER_DATA` environment variable.
 - **EPUB export/import** – JSZip writes and reads `META-INF/ebook-viewer.json` on the original EPUB, while `@xmldom/xmldom` cleans inline annotations; both export modes produce a single file.
 - **Custom fonts** – Imported fonts are copied into local `fonts/` and served through the `app-font://` protocol without network access.
 - **Desktop color sampling** – The main process captures the desktop rectangle under the stealth window. The renderer draws a separate per-character text layer and samples the background in the vertical gaps above and below each line, then computes an ink color for every character.
-- **Automatic updates** – Installed builds use `electron-updater` to check GitHub Releases, download in the background and install on quit; update metadata is generated from the electron-builder GitHub publish config.
+- **Automatic updates** – Installed builds use `electron-updater` to check GitHub Releases; both download and install require user confirmation. Update metadata is generated from the electron-builder GitHub publish config.
 - **Local storage** – The main process owns `data.json` and `books/`; nothing leaves the machine.
 
 ## 🧱 Tech Stack
@@ -276,10 +283,12 @@ Open settings from the gear on the library page:
 
 ## 🔄 Automatic Updates
 
-- Installed builds check GitHub Releases shortly after startup.
-- New versions download in the background without interrupting reading.
-- Downloaded updates install when the app quits.
-- Settings → **Application Updates** offers a manual check and a “restart and install” action.
+- Installed builds check GitHub Releases on startup but **never download or install automatically**.
+- The first launch only records an available version; the **next launch asks** whether to download it.
+- After download, the app asks again before restarting; quitting does not install automatically.
+- Updates use the original install location stored in the registry and do not move the program directory.
+- Packages come from GitHub Releases and are hash-verified by electron-updater.
+- Settings → **Application Updates** offers manual check, download and restart actions.
 - Portable builds should download the new archive from GitHub Releases manually.
 
 ## 🫥 Stealth Mode

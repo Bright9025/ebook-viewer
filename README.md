@@ -6,15 +6,22 @@
 
 一个专注阅读本身的本地 EPUB 阅读器：书库、目录、书签、明亮 / 暗黑主题，以及一个可以随时呼出、随桌面颜色隐身的「摸鱼模式」。
 
-> 当前版本：**v1.0.3** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> 当前版本：**v1.0.4** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 v1.0.3 更新
+## 🆕 v1.0.4 更新
 
-- **修复安装更新后书库、阅读进度被覆盖**：书籍与设置迁移到独立的用户数据目录，安装升级不再删除；安装器和首次启动都会尝试从旧 `data/` 迁移。
-- **新增自动更新**：启动后自动检查 GitHub Releases，发现新版本后后台下载，退出应用时自动安装；设置中也可以手动检查并立即重启安装。
-- 打包配置加入 GitHub publish 和自动更新元数据。
+- **更新不再静默**：首次打开只检查版本并记录，第二次打开才提示是否下载；下载完成后再次询问是否重启安装，退出应用不会自动安装。
+- **更新保持原安装目录**：自动更新沿用注册表中的原安装位置，不移动程序目录，也不修改用户书库目录。
+- 更新提示会说明来源（GitHub Releases）和完整性校验，书库、书籍和进度不会被改动。
+- v1.0.3 的数据迁移和自动更新基础仍然保留。
+
+### v1.0.3 主要更新
+
+- 书库数据迁移到 `%LOCALAPPDATA%\Ebook Viewer\`，安装更新不再覆盖书籍和进度；
+- 安装器在升级前备份旧 `data/`，首次启动还有兜底迁移；
+- 接入 `electron-updater`，设置中提供手动检查更新。
 
 ### v1.0.2 主要更新
 
@@ -143,14 +150,14 @@ release/
 │   ├── EbookViewerCore.exe       # Electron 主体
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Chromium 配置（书库数据不在这里）
-├── Ebook-Viewer-1.0.3-x64.exe    # NSIS 安装包
-├── Ebook-Viewer-1.0.3-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.3-x64-portable.zip
+├── Ebook-Viewer-1.0.4-x64.exe    # NSIS 安装包
+├── Ebook-Viewer-1.0.4-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.4-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder 调试信息（可忽略）
 ```
 
-发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.3-x64.exe` 和 `Ebook-Viewer-v1.0.3-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
+发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.4-x64.exe` 和 `Ebook-Viewer-v1.0.4-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
 
 ## 📚 使用
 
@@ -190,7 +197,7 @@ release/
 - `fonts/`：导入的本地阅读字体
 - `exports/`：导出目录被系统权限拦截时的回退位置
 
-从 v1.0.2 升级到 v1.0.3 时，安装器会先把旧安装目录 `data/` 中的书库复制到 `%LOCALAPPDATA%\Ebook Viewer\`，应用首次启动时也会再做一次兜底迁移。
+从 v1.0.2 升级到 v1.0.3 / v1.0.4 时，安装器会先把旧安装目录 `data/` 中的书库复制到 `%LOCALAPPDATA%\Ebook Viewer\`，应用首次启动时也会再做一次兜底迁移。
 
 可用环境变量 `EBOOK_USER_DATA` 覆盖数据目录。
 
@@ -205,7 +212,7 @@ release/
 - **EPUB 导出与导入**：使用 JSZip 在原 EPUB 上写入/读取 `META-INF/ebook-viewer.json`，并用 `@xmldom/xmldom` 清理原位标注；两种导出都只生成一个文件。
 - **自定义字体**：导入的字体复制到本地 `fonts/`，通过 `app-font://` 协议加载，不依赖网络。
 - **桌面取色**：主进程按摸鱼窗矩形截取桌面，渲染进程在独立文本层中逐字渲染，并在每个字所在行的上下留白处采样局部背景，逐字计算颜色。
-- **自动更新**：安装版通过 `electron-updater` 检查 GitHub Releases，后台下载并在退出时安装；更新器元数据由 electron-builder 的 GitHub publish 配置生成。
+- **自动更新**：安装版通过 `electron-updater` 检查 GitHub Releases，下载和安装都需要用户确认；更新器元数据由 electron-builder 的 GitHub publish 配置生成。
 - **本地存储**：主进程维护 `data.json` 与 `books/`，所有数据留在本机。
 
 ## 🧱 技术栈
@@ -276,10 +283,12 @@ release/
 
 ## 🔄 自动更新
 
-- 安装版启动后会自动检查 GitHub Releases；
-- 发现新版本后后台下载，不打断阅读；
-- 退出应用时自动安装更新；
-- 设置 →「应用更新」可以手动检查，已下载时可选择「重启并安装」；
+- 安装版启动后检查 GitHub Releases，但**不会自动下载或安装**；
+- 第一次打开只记录可用的新版本，**第二次打开才提示**是否下载；
+- 下载完成后再次询问是否重启安装，退出应用不会自动安装；
+- 更新沿用注册表中的原安装目录，不会移动程序目录；
+- 更新包来自 GitHub Releases，并使用 electron-updater 校验哈希；
+- 设置 →「应用更新」可以手动检查、下载和重启安装；
 - 便携版请从 GitHub Releases 手动下载新压缩包。
 
 ## 🫥 摸鱼模式
