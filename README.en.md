@@ -242,7 +242,7 @@ Open settings from the gear on the library page:
 - **Theme**: light, dark, follow system, or sunrise/sunset auto.
 - **Sunrise/sunset** uses local geolocation to compute the day's sunrise and sunset; if location is unavailable it falls back to local 06:00 / 18:00.
 - The sun/moon button cycles light → dark → auto; auto mode shows a small `A` badge.
-- **Reading fonts**: 8 built-ins plus local `.ttf` / `.otf` / `.woff` / `.woff2` imports; imported fonts can be removed.
+- **Reading fonts**: 4 built-ins (Source Han Serif, Songti, Kaiti, Heiti) plus local `.ttf` / `.otf` / `.woff` / `.woff2` imports; imported fonts can be removed.
 - **Annotation colors**: edit each color and label, add or remove colors; the selection menu and note dialog only show the current palette, with at least one color.
 - **Reset defaults**: restores theme, fonts, annotation colors and other preferences without deleting books, annotations or bookmarks.
 

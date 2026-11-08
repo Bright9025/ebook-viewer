@@ -4,22 +4,14 @@ export const readerFontStacks: Record<ReaderFont, string> = {
   serif: '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, serif',
   song: 'SimSun, "Songti SC", "Noto Serif CJK SC", serif',
   kai: 'KaiTi, STKaiti, "Kaiti SC", serif',
-  sans: '"Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
-  fangsong: 'FangSong, STFangsong, "FangSong_GB2312", serif',
-  hei: '"Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei UI", sans-serif',
-  yuan: '"Yuanti SC", YouYuan, "STYuanti", "Microsoft YaHei UI", sans-serif',
-  mono: '"Sarasa Mono SC", "Cascadia Mono", Consolas, monospace'
+  sans: '"Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif'
 }
 
 export const readerFontLabels: Record<string, string> = {
   serif: '思源宋体',
   song: '宋体',
   kai: '楷体',
-  sans: '黑体',
-  fangsong: '仿宋',
-  hei: '思源黑体',
-  yuan: '圆体',
-  mono: '等宽'
+  sans: '黑体'
 }
 
 export function fontStack(font: ReaderFont, customFonts: CustomFont[]): string {
