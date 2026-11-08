@@ -14,6 +14,7 @@ Ebook Viewer itself is released under the [MIT License](./LICENSE). The followin
 | [Pinia](https://pinia.vuejs.org) | 3.0.4 | MIT |
 | [Vue Router](https://router.vuejs.org) | 4.6.4 | MIT |
 | [JSZip](https://stuk.github.io/jszip/) | 3.10.2 | MIT OR GPL-3.0-or-later（本项目按 MIT 使用） |
+| [@xmldom/xmldom](https://github.com/xmldom/xmldom) | 0.8.15 | MIT |
 
 `epub.js` 会被打包进渲染进程，其 BSD-2-Clause 许可证全文如下：
 

@@ -682,26 +682,12 @@ function applyAnnotation(annotation: Annotation): void {
     /* ignore */
   }
   if (annotation.style === 'none') return
-  const color = annotationColor(annotation.color)
-  if (annotation.style === 'wavy' || annotation.style === 'underline') {
+  if (annotation.style === 'wavy' || annotation.style === 'underline' || annotation.style === 'highlight') {
     applyWavyAnnotation(annotation)
     return
   }
-  try {
-    instance.annotations.highlight(
-      annotation.cfi,
-      { id: annotation.id },
-      () => editAnnotation(annotation),
-      'reader-annotation',
-      {
-        fill: color.swatch,
-        'fill-opacity': '0.38'
-      }
-    )
-  } catch (error) {
-    console.warn('[reader] failed to render annotation', error)
-  }
 }
+
 function applyWavyAnnotation(annotation: Annotation): void {
   const instance = rendition.value as any
   const list = (instance?.getContents?.() ?? []) as any[]
@@ -730,12 +716,13 @@ function applyWavyAnnotation(annotation: Annotation): void {
     const color = annotationColor(annotation.color)
     const decorationColor =
       annotation.color === 'black' && store.theme === 'dark' ? '#dedad2' : color.swatch
+    const highlight = annotation.style === 'highlight'
     style.textContent += `::highlight(${name}) {
-      text-decoration-line: underline;
+      ${highlight ? `background-color: ${color.swatch}66;` : `text-decoration-line: underline;
       text-decoration-style: ${annotation.style === 'wavy' ? 'wavy' : 'solid'};
       text-decoration-color: ${decorationColor};
       text-decoration-thickness: 1.6px;
-      text-underline-offset: 3px;
+      text-underline-offset: 3px;`}
     }\n`
     try {
       registry.set(name, new HighlightCtor(range))
@@ -772,7 +759,7 @@ function applyAnnotations(): void {
 function refreshWavyAnnotations(): void {
   clearWavyHighlights()
   for (const annotation of annotations.value) {
-    if (annotation.style === 'wavy' || annotation.style === 'underline') applyWavyAnnotation(annotation)
+    if (annotation.style !== 'none') applyWavyAnnotation(annotation)
   }
 }
 

@@ -87,6 +87,11 @@ async function importFiles(paths: string[]): Promise<Book[]> {
   }
   importing.value = false
   if (added.length) {
+    try {
+      await store.refreshReadingData()
+    } catch (error) {
+      console.warn('[library] failed to refresh reading data', error)
+    }
     toast(added.length === 1 ? `已导入《${added[0].title}》` : `已导入 ${added.length} 本书`, 'success')
   }
   return added
@@ -560,21 +565,18 @@ function relativeTime(book: Book): string {
 
 .export-button {
   left: 8px;
+  z-index: 2;
 }
 
 .book-card:hover .delete-button,
 .book-card:hover .export-button {
   opacity: 1;
   transform: none;
+  pointer-events: auto;
 }
 
-.book-card .export-button {
-  opacity: 0.86;
-  transform: none;
-}
-
-.book-card:hover .export-button {
-  opacity: 1;
+.export-button {
+  pointer-events: none;
 }
 
 .delete-button:hover {

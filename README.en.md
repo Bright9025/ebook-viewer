@@ -230,6 +230,8 @@ Click the download button on a library card or in the reader toolbar, choose a m
 - Keeps `META-INF/ebook-viewer.json` as a complete data backup.
 - Does not add a separate notes chapter; annotations are visible while reading the original text.
 
+Both exported EPUBs restore annotations, bookmarks and reading progress when imported back into this app. The inline version also removes its temporary annotation `<span>` wrappers before re-rendering annotations from the original CFIs.
+
 > If Windows security software or folder permissions reject the selected directory, the export is automatically written to the app's writable `exports` folder, with a prompt and an “Open folder” button. Inline annotations are ordinary `<span class="ev-annotation ...">` elements and should work in most EPUB readers. The Ebook Viewer JSON remains the full data source. Full EPUB Annotations import/export is not implemented yet.
 
 ## 🫥 Stealth Mode

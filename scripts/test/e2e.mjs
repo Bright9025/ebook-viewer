@@ -188,10 +188,11 @@ try {
   await sleep(600)
   const savedAnnotations = await page.evaluate((id) => window.api.annotations.list(id), bookId)
   assert(savedAnnotations.length === 1, 'text highlight is persisted')
-  assert(
-    (await page.evaluate(() => document.querySelectorAll('.reader-viewer svg g[data-id]').length)) > 0,
-    'highlight is rendered in the reader'
-  )
+  const renderedHighlights = await page.evaluate(() => {
+    const frame = document.querySelector('.reader-viewer iframe')
+    return frame?.contentWindow?.CSS?.highlights?.size ?? 0
+  })
+  assert(renderedHighlights > 0, 'highlight is rendered in the reader')
   await page.evaluate(() => document.querySelector('button[title="标注"]')?.click())
   await sleep(300)
   assert((await page.locator('.annotation-item').count()) === 1, 'annotation appears in the panel')
@@ -295,6 +296,24 @@ try {
     !Object.keys(inlineZip.files).some((name) => name.endsWith('ebook-viewer-notes.xhtml')),
     'inline export does not add a separate notes chapter'
   )
+
+  const importedData = await page.evaluate(
+    async (sourcePath) =>
+      window.api.library.add({ sourcePath, title: 'Imported data edition', author: 'Test' }),
+    exportPath
+  )
+  const importedInline = await page.evaluate(
+    async (sourcePath) =>
+      window.api.library.add({ sourcePath, title: 'Imported inline edition', author: 'Test' }),
+    inlinePath
+  )
+  for (const imported of [importedData, importedInline]) {
+    const readingAnnotations = await page.evaluate((id) => window.api.annotations.list(id), imported.id)
+    const readingBookmarks = await page.evaluate((id) => window.api.bookmarks.list(id), imported.id)
+    assert(readingAnnotations.length >= 2, `${imported.title} restores annotations`)
+    assert(readingBookmarks.length === 1, `${imported.title} restores bookmarks`)
+    assert(imported.progress.cfi === exportCfi, `${imported.title} restores progress`)
+  }
 
   const cfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
   const opened = await page.evaluate(

@@ -167,6 +167,13 @@ export const useAppStore = defineStore('app', () => {
     annotations.value = annotations.value.filter((annotation) => annotation.id !== id)
   }
 
+  async function refreshReadingData(): Promise<void> {
+    const data = await window.api.library.list()
+    books.value = data.books
+    bookmarks.value = data.bookmarks
+    annotations.value = data.annotations
+  }
+
   function bookById(id: string): Book | undefined {
     return books.value.find((book) => book.id === id)
   }
@@ -185,6 +192,7 @@ export const useAppStore = defineStore('app', () => {
     applyProgress,
     setLocalProgress,
     addBookLocal,
+    refreshReadingData,
     removeBookLocal,
     touchLocal,
     bookmarksFor,

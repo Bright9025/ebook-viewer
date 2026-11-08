@@ -230,6 +230,8 @@ release/
 - 同时保留 `META-INF/ebook-viewer.json` 作为完整数据备份；
 - 不新增「阅读笔记」章节，打开正文即可看到标注位置。
 
+导出的两种 EPUB 重新导入本应用时，都会读取 `META-INF/ebook-viewer.json`，恢复批注、书签和阅读进度；原位标注版导入时会先清理正文里的临时标注 `<span>`，再按原 CFI 重新渲染，避免重复标记。
+
 > 如果 Windows 安全软件或文件夹权限阻止写入所选目录，导出会自动改存到程序可写目录下的 `exports` 文件夹，并弹出提示和「打开文件夹」按钮。原位标注版的标注以普通 `<span class="ev-annotation ...">` 写入正文，兼容大部分 EPUB 阅读器；Ebook Viewer 自定义 JSON 仍是完整数据的来源。完整的 EPUB Annotations 导入/导出尚不在当前范围内。
 
 ## 🫥 摸鱼模式
