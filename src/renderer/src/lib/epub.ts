@@ -4,6 +4,7 @@ import type { Book, NavItem } from 'epubjs'
 export interface EpubMeta {
   title: string
   author: string
+  description: string
   cover: string
 }
 
@@ -24,7 +25,7 @@ export async function inspectEpub(data: ArrayBuffer): Promise<EpubMeta> {
   const book = ePub(data)
   try {
     await book.ready
-    const metadata = (await book.loaded.metadata) as { title?: string; creator?: string } | undefined
+    const metadata = (await book.loaded.metadata) as { title?: string; creator?: string; description?: string } | undefined
     let cover = ''
     try {
       const url = await book.coverUrl()
@@ -35,6 +36,7 @@ export async function inspectEpub(data: ArrayBuffer): Promise<EpubMeta> {
     return {
       title: String(metadata?.title ?? '').trim(),
       author: String(metadata?.creator ?? '').trim(),
+      description: String(metadata?.description ?? '').trim(),
       cover
     }
   } finally {

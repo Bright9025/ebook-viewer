@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import { basename, dirname, extname, join, posix } from 'node:path'
 import JSZip from 'jszip'
 import type { Annotation, Bookmark, ExportMode } from '../shared/types'
-import { readBook } from './library'
+import { readBook, stripInlineAnnotations } from './library'
 import { getStore } from './store'
 
 interface ExportPayload {
@@ -13,19 +13,12 @@ interface ExportPayload {
     id: string
     title: string
     author: string
+    description: string
     fileName: string
   }
   progress: unknown
   bookmarks: Bookmark[]
   annotations: Annotation[]
-}
-
-const annotationHex: Record<Annotation['color'], string> = {
-  yellow: '#e7b84b',
-  green: '#6faf83',
-  blue: '#6e9fc7',
-  pink: '#cf83a0',
-  black: '#2b2a27'
 }
 
 export async function exportBookAsEpub(
@@ -43,7 +36,7 @@ export async function exportBookAsEpub(
 
   let filePath = targetPath?.trim() ?? ''
   if (!filePath) {
-    const suffix = exportMode === 'inline' ? '原位标注版' : '标注版'
+    const suffix = exportMode === 'original' ? '纯净版' : '数据版'
     const safeTitle = safeFileStem(book.title)
     const folderOptions: Electron.OpenDialogOptions = {
       title: '选择导出文件夹',
@@ -71,6 +64,7 @@ export async function exportBookAsEpub(
       id: book.id,
       title: book.title,
       author: book.author,
+      description: book.description,
       fileName: book.fileName
     },
     progress: { ...book.progress },
@@ -78,18 +72,18 @@ export async function exportBookAsEpub(
     annotations
   }
 
-  zip.file('META-INF/ebook-viewer.json', JSON.stringify(payload, null, 2))
-  if (exportMode === 'inline') {
-    await injectInlineAnnotations(zip, payload)
+  let output: Buffer
+  if (exportMode === 'original') {
+    output = await cleanOriginalEpub(zip, Buffer.from(bytes))
   } else {
+    zip.file('META-INF/ebook-viewer.json', JSON.stringify(payload, null, 2))
     await injectNotesDocument(zip, payload)
+    output = await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    })
   }
-
-  const output = await zip.generateAsync({
-    type: 'nodebuffer',
-    compression: 'DEFLATE',
-    compressionOptions: { level: 6 }
-  })
   try {
     await writeFile(filePath, output)
   } catch (error) {
@@ -115,6 +109,40 @@ export async function exportBookAsEpub(
     return fallback
   }
   return filePath
+}
+
+export async function exportBooksAsEpub(
+  ids: string[],
+  parent: BrowserWindow | null,
+  mode?: ExportMode,
+  targetFolder?: string
+): Promise<string[]> {
+  const store = getStore()
+  const books = ids.map((id) => store.book(id)).filter((book): book is NonNullable<typeof book> => Boolean(book))
+  if (!books.length) return []
+  const exportMode = mode ?? (await askExportMode(parent))
+  if (!exportMode) return []
+  const folder = targetFolder?.trim() || (await chooseExportFolder(parent))
+  if (!folder) return []
+  const suffix = exportMode === 'original' ? '纯净版' : '数据版'
+  const paths: string[] = []
+  for (const book of books) {
+    const target = await uniqueFilePath(folder, `${safeFileStem(book.title)}-${suffix}.epub`)
+    const path = await exportBookAsEpub(book.id, parent, target, exportMode)
+    if (path) paths.push(path)
+  }
+  return paths
+}
+
+async function chooseExportFolder(parent: BrowserWindow | null): Promise<string | null> {
+  const options: Electron.OpenDialogOptions = {
+    title: '选择导出文件夹',
+    defaultPath: app.getPath('downloads'),
+    buttonLabel: '导出到此文件夹',
+    properties: ['openDirectory', 'createDirectory']
+  }
+  const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
 async function writeFile(filePath: string, data: Buffer): Promise<void> {
@@ -147,15 +175,50 @@ async function askExportMode(parent: BrowserWindow | null): Promise<ExportMode |
     title: '导出 EPUB',
     message: '选择导出方式',
     detail:
-      '数据版：保留原文，附带阅读笔记章节和完整标注 JSON。\n原位标注版：把高亮、下划线和波浪线直接写进原文。\n两种方式都只生成一个 EPUB 文件。',
-    buttons: ['数据版（附带阅读笔记）', '原位标注版（写入正文）', '取消'],
+      '数据版：附带批注、书签、阅读进度和「阅读笔记」章节。\n纯净版：只复制原始 EPUB，不包含任何标注或阅读数据。\n两种方式都只生成一个 EPUB 文件。',
+    buttons: ['数据版（含标注和进度）', '纯净版（仅原始正文）', '取消'],
     defaultId: 0,
     cancelId: 2,
     noLink: true
   }
   const result = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options)
   if (result.response === 2) return null
-  return result.response === 1 ? 'inline' : 'data'
+  return result.response === 1 ? 'original' : 'data'
+}
+
+async function cleanOriginalEpub(zip: JSZip, bytes: Buffer): Promise<Buffer> {
+  const hasSidecar = Boolean(zip.file('META-INF/ebook-viewer.json'))
+  let changed = false
+  if (hasSidecar) {
+    zip.remove('META-INF/ebook-viewer.json')
+    changed = true
+  }
+  const opf = await readOpf(zip)
+  if (opf) {
+    let text = opf.text
+      .replace(/\s*<item\b[^>]*id="ebook-viewer-notes"[^>]*\/?>/gi, '')
+      .replace(/\s*<itemref\b[^>]*idref="ebook-viewer-notes"[^>]*\/?>/gi, '')
+    if (text !== opf.text) {
+      zip.file(opf.path, text)
+      changed = true
+    }
+    const notesPath = opf.dir === '.' ? 'ebook-viewer-notes.xhtml' : posix.join(opf.dir, 'ebook-viewer-notes.xhtml')
+    if (zip.file(notesPath)) {
+      zip.remove(notesPath)
+      changed = true
+    }
+  }
+  for (const name of Object.keys(zip.files)) {
+    if (!/\.x?html?$/i.test(name)) continue
+    const entry = zip.file(name)
+    if (!entry) continue
+    const xhtml = await entry.async('string')
+    if (!xhtml.includes('ev-annotation')) continue
+    zip.file(name, stripInlineAnnotations(xhtml))
+    changed = true
+  }
+  if (!changed) return bytes
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 }
 
 async function injectNotesDocument(zip: JSZip, payload: ExportPayload): Promise<void> {
@@ -174,245 +237,6 @@ async function injectNotesDocument(zip: JSZip, payload: ExportPayload): Promise<
   text = text.replace(/<\/manifest>/i, `  ${manifestItem}\n</manifest>`)
   text = text.replace(/<\/spine>/i, `  ${spineItem}\n</spine>`)
   zip.file(opf.path, text)
-}
-
-async function injectInlineAnnotations(zip: JSZip, payload: ExportPayload): Promise<void> {
-  const opf = await readOpf(zip)
-  if (!opf) return
-  const manifest = new Map<string, string>()
-  for (const tag of opf.text.match(/<item\b[^>]*>/gi) ?? []) {
-    const attrs = parseAttrs(tag)
-    if (attrs.id && attrs.href) manifest.set(attrs.id, attrs.href)
-  }
-  const spine = (opf.text.match(/<itemref\b[^>]*>/gi) ?? [])
-    .map((tag) => parseAttrs(tag).idref ?? '')
-    .filter(Boolean)
-
-  const byChapter = new Map<string, Annotation[]>()
-  for (const annotation of payload.annotations) {
-    const index = spineIndexFromCfi(annotation.cfi)
-    const idref = index >= 0 ? spine[index] : ''
-    const href = idref ? manifest.get(idref) : ''
-    if (!href) continue
-    const path = posix.normalize(posix.join(opf.dir, decodeURIComponent(href)))
-    const list = byChapter.get(path) ?? []
-    list.push(annotation)
-    byChapter.set(path, list)
-  }
-
-  for (const [path, annotations] of byChapter) {
-    const file = zip.file(path)
-    if (!file) continue
-    let xhtml = await file.async('string')
-    for (const annotation of annotations) {
-      xhtml = wrapAnnotationInXhtml(xhtml, annotation)
-    }
-    zip.file(path, xhtml)
-  }
-}
-
-function wrapAnnotationInXhtml(xhtml: string, annotation: Annotation): string {
-  const { text, nodes } = scanText(xhtml)
-  const range = findQuote(text, annotation.text)
-  if (!range) return xhtml
-
-  const open = annotationSpanOpen(annotation)
-  const inserts: Array<{ pos: number; text: string }> = []
-  for (const node of nodes) {
-    if (node.end <= range.start || node.start >= range.end) continue
-    const localStart = Math.max(range.start, node.start) - node.start
-    const localEnd = Math.min(range.end, node.end) - node.start
-    const rawStart = node.rawStart + node.starts[localStart]
-    const rawEnd = node.rawStart + node.ends[localEnd - 1]
-    if (rawStart == null || rawEnd == null) continue
-    inserts.push({ pos: rawEnd, text: '</span>' })
-    inserts.push({ pos: rawStart, text: open })
-  }
-  inserts.sort((a, b) => b.pos - a.pos || (a.text.startsWith('</') ? -1 : 1))
-  let output = xhtml
-  for (const insert of inserts) {
-    output = output.slice(0, insert.pos) + insert.text + output.slice(insert.pos)
-  }
-  return output
-}
-
-function annotationSpanOpen(annotation: Annotation): string {
-  const color = annotationHex[annotation.color] ?? '#e7b84b'
-  const style =
-    annotation.style === 'highlight'
-      ? `background-color:${color}66;`
-      : annotation.style === 'underline'
-        ? `text-decoration:underline solid ${color};text-decoration-thickness:1.6px;text-underline-offset:3px;`
-        : annotation.style === 'wavy'
-          ? `text-decoration:underline wavy ${color};text-decoration-thickness:1.6px;text-underline-offset:3px;`
-          : ''
-  const title = annotation.note ? ` title="${escapeXml(annotation.note)}"` : ''
-  return `<span class="ev-annotation ev-${annotation.style}" data-annotation-id="${escapeXml(annotation.id)}" style="${style}"${title}>`
-}
-
-interface TextNodeRange {
-  rawStart: number
-  rawEnd: number
-  start: number
-  end: number
-  starts: number[]
-  ends: number[]
-}
-
-function scanText(xhtml: string): { text: string; nodes: TextNodeRange[] } {
-  const nodes: TextNodeRange[] = []
-  let text = ''
-  let index = 0
-  while (index < xhtml.length) {
-    if (xhtml.startsWith('<!--', index)) {
-      const end = xhtml.indexOf('-->', index + 4)
-      index = end >= 0 ? end + 3 : xhtml.length
-      continue
-    }
-    if (xhtml[index] === '<') {
-      const end = findTagEnd(xhtml, index)
-      const tag = xhtml.slice(index + 1, end).trim()
-      if (/^(script|style)\b/i.test(tag)) {
-        const close = new RegExp(`</${tag.split(/\s/)[0]}>`, 'i')
-        const match = close.exec(xhtml.slice(end + 1))
-        index = match ? end + 1 + match.index + match[0].length : end + 1
-        continue
-      }
-      index = end + 1
-      continue
-    }
-    const next = xhtml.indexOf('<', index)
-    const rawEnd = next >= 0 ? next : xhtml.length
-    const raw = xhtml.slice(index, rawEnd)
-    const decoded = decodeText(raw)
-    const start = text.length
-    text += decoded.text
-    nodes.push({
-      rawStart: index,
-      rawEnd,
-      start,
-      end: text.length,
-      starts: decoded.starts,
-      ends: decoded.ends
-    })
-    index = rawEnd
-  }
-  return { text, nodes }
-}
-
-function findQuote(text: string, quote: string): { start: number; end: number } | null {
-  if (!quote) return null
-  const direct = text.indexOf(quote)
-  if (direct >= 0) return { start: direct, end: direct + quote.length }
-
-  const normalized = normalizeWithMap(text)
-  const target = quote.replace(/\s+/g, ' ').trim()
-  const index = normalized.text.indexOf(target)
-  if (index < 0) return null
-  const start = normalized.map[index]
-  const last = normalized.map[index + target.length - 1]
-  return { start, end: last + 1 }
-}
-
-function normalizeWithMap(text: string): { text: string; map: number[] } {
-  let output = ''
-  const map: number[] = []
-  let pendingSpace = false
-  for (let index = 0; index < text.length; index++) {
-    const char = text[index]
-    if (/\s/.test(char)) {
-      pendingSpace = output.length > 0
-      continue
-    }
-    if (pendingSpace) {
-      output += ' '
-      map.push(index)
-      pendingSpace = false
-    }
-    output += char
-    map.push(index)
-  }
-  return { text: output, map }
-}
-
-function decodeText(raw: string): { text: string; starts: number[]; ends: number[] } {
-  let text = ''
-  const starts: number[] = []
-  const ends: number[] = []
-  for (let index = 0; index < raw.length; index++) {
-    const char = raw[index]
-    if (char === '&') {
-      const end = raw.indexOf(';', index + 1)
-      if (end > index + 1 && end - index <= 12) {
-        const entity = raw.slice(index + 1, end)
-        const decoded = decodeEntity(entity)
-        if (decoded !== null) {
-          for (let i = 0; i < decoded.length; i++) {
-            text += decoded[i]
-            starts.push(index)
-            ends.push(end + 1)
-          }
-          index = end
-          continue
-        }
-      }
-    }
-    text += char
-    starts.push(index)
-    ends.push(index + 1)
-  }
-  return { text, starts, ends }
-}
-
-function decodeEntity(entity: string): string | null {
-  const named: Record<string, string> = {
-    amp: '&',
-    lt: '<',
-    gt: '>',
-    quot: '"',
-    apos: "'",
-    nbsp: ' '
-  }
-  if (entity[0] === '#') {
-    const value = entity[1] === 'x' || entity[1] === 'X' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10)
-    if (!Number.isFinite(value)) return null
-    try {
-      return String.fromCodePoint(value)
-    } catch {
-      return null
-    }
-  }
-  return named[entity] ?? null
-}
-
-function findTagEnd(text: string, start: number): number {
-  let quote = ''
-  for (let index = start + 1; index < text.length; index++) {
-    const char = text[index]
-    if (quote) {
-      if (char === quote) quote = ''
-    } else if (char === '"' || char === "'") {
-      quote = char
-    } else if (char === '>') {
-      return index
-    }
-  }
-  return text.length - 1
-}
-
-function spineIndexFromCfi(cfi: string): number {
-  const match = cfi.match(/^epubcfi\(\/6\/(\d+)/)
-  if (!match) return -1
-  const rank = Number(match[1])
-  return Number.isFinite(rank) && rank >= 2 ? Math.floor(rank / 2) - 1 : -1
-}
-
-function parseAttrs(tag: string): Record<string, string> {
-  const attrs: Record<string, string> = {}
-  for (const match of tag.matchAll(/([\w:-]+)="([^"]*)"/g)) {
-    attrs[match[1]] = match[2]
-  }
-  return attrs
 }
 
 async function readOpf(zip: JSZip): Promise<{ path: string; text: string; dir: string } | null> {

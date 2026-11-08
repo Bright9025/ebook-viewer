@@ -14,6 +14,7 @@ export interface Book {
   id: string
   title: string
   author: string
+  description: string
   cover: string
   fileName: string
   addedAt: number
@@ -33,7 +34,7 @@ export interface Bookmark {
 
 export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'black'
 export type AnnotationStyle = 'highlight' | 'underline' | 'wavy' | 'none'
-export type ExportMode = 'data' | 'inline'
+export type ExportMode = 'data' | 'original'
 
 export interface Annotation {
   id: string
@@ -91,6 +92,7 @@ export interface ImportRequest {
   sourcePath: string
   title: string
   author: string
+  description?: string
   cover: string
 }
 

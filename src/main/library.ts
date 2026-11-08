@@ -27,10 +27,12 @@ export async function addBook(request: ImportRequest): Promise<Book> {
   await fs.copyFile(request.sourcePath, targetPath)
 
   const now = Date.now()
+  const baseTitle = cleanText(request.title) || basename(request.sourcePath, extname(request.sourcePath)) || '未命名'
   const book: Book = {
     id,
-    title: cleanText(request.title) || basename(request.sourcePath, extname(request.sourcePath)) || '未命名',
+    title: uniqueTitle(baseTitle, store.books),
     author: cleanText(request.author),
+    description: cleanText(request.description ?? ''),
     cover: typeof request.cover === 'string' && request.cover.length <= MAX_COVER_LENGTH ? request.cover : '',
     fileName,
     addedAt: now,
@@ -92,7 +94,7 @@ async function readAndCleanExport(path: string): Promise<ExportSidecar | null> {
   }
 }
 
-function stripInlineAnnotations(xhtml: string): string {
+export function stripInlineAnnotations(xhtml: string): string {
   try {
     const document = new DOMParser().parseFromString(xhtml, 'application/xhtml+xml')
     const spans = Array.from(document.getElementsByTagName('span'))
@@ -185,4 +187,12 @@ export async function touchBook(id: string): Promise<void> {
 function cleanText(value: unknown): string {
   if (typeof value !== 'string') return ''
   return value.replace(/\s+/g, ' ').trim().slice(0, 200)
+}
+
+function uniqueTitle(base: string, books: Book[]): string {
+  const used = new Set(books.map((book) => book.title.trim()))
+  if (!used.has(base)) return base
+  let index = 1
+  while (used.has(`${base}-${index}`)) index += 1
+  return `${base}-${index}`
 }

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import type { Annotation, AppSettings, Bookmark, ExportMode, ProgressPayload, StealthContextPayload } from '../shared/types'
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
-import { exportBookAsEpub } from './export'
+import { exportBookAsEpub, exportBooksAsEpub } from './export'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
 import { refreshTrayMenu } from './tray'
@@ -42,7 +42,7 @@ export function registerIpc(): void {
     return result.canceled ? [] : result.filePaths
   })
 
-  ipcMain.handle('library:add', async (_event, request: { sourcePath: string; title: string; author: string; cover: string }) => {
+  ipcMain.handle('library:add', async (_event, request: { sourcePath: string; title: string; author: string; description?: string; cover: string }) => {
     if (!request?.sourcePath || !existsSync(request.sourcePath)) throw new Error('SOURCE_NOT_FOUND')
     if (extname(request.sourcePath).toLowerCase() !== '.epub') throw new Error('NOT_EPUB')
     const book = await addBook(request)
@@ -60,6 +60,10 @@ export function registerIpc(): void {
   ipcMain.handle('library:export', async (event, id: string, targetPath?: string, mode?: ExportMode) => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow()
     return exportBookAsEpub(id, win, targetPath, mode)
+  })
+  ipcMain.handle('library:export-many', async (event, ids: string[], mode?: ExportMode, targetFolder?: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow()
+    return exportBooksAsEpub(ids, win, mode, targetFolder)
   })
   ipcMain.handle('library:touch', async (_event, id: string) => {
     await touchBook(id)

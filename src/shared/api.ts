@@ -26,6 +26,7 @@ export interface LibraryApi {
   readPath(path: string): Promise<Uint8Array>
   touch(id: string): Promise<void>
   export(id: string, targetPath?: string, mode?: ExportMode): Promise<string | null>
+  exportMany(ids: string[], mode?: ExportMode, targetFolder?: string): Promise<string[]>
 }
 
 export interface SettingsApi {

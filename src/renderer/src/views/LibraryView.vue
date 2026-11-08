@@ -5,6 +5,7 @@ import type { Book } from '@shared/types'
 import TitleBar from '../components/TitleBar.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import BookDetailDialog from '../components/BookDetailDialog.vue'
 import { inspectEpub, toArrayBuffer } from '../lib/epub'
 import { errorMessage, toast } from '../lib/toast'
 import { useAppStore } from '../stores/app'
@@ -19,6 +20,14 @@ const exporting = ref('')
 const dragDepth = ref(0)
 const dragging = computed(() => dragDepth.value > 0)
 const pendingDelete = ref<Book | null>(null)
+const selecting = ref(false)
+const selectedIds = ref<string[]>([])
+const bulkDeleteOpen = ref(false)
+const exportingMany = ref(false)
+const detailBook = ref<Book | null>(null)
+const cardMenu = ref<{ book: Book; x: number; y: number } | null>(null)
+
+const selectedBooks = computed(() => store.books.filter((book) => selectedIds.value.includes(book.id)))
 
 const filtered = computed(() => {
   const keyword = query.value.trim().toLowerCase()
@@ -33,6 +42,10 @@ const filtered = computed(() => {
     return (b.lastOpenedAt || b.addedAt) - (a.lastOpenedAt || a.addedAt)
   })
 })
+
+const allFilteredSelected = computed(
+  () => filtered.value.length > 0 && filtered.value.every((book) => selectedIds.value.includes(book.id))
+)
 
 const readingCount = computed(() => store.books.filter((book) => book.progress.percent > 0).length)
 
@@ -76,6 +89,7 @@ async function importFiles(paths: string[]): Promise<Book[]> {
         sourcePath: path,
         title: meta.title || name.replace(/\.epub$/i, ''),
         author: meta.author,
+        description: meta.description,
         cover: meta.cover
       })
       store.addBookLocal(book)
@@ -112,11 +126,117 @@ async function exportBook(book: Book): Promise<void> {
   exporting.value = book.id
   try {
     const path = await window.api.library.export(book.id)
-    if (path) toast(`已导出带标注的 EPUB：${path}`, 'success')
+    if (path) toast(`已导出 EPUB：${path}`, 'success')
   } catch (error) {
     toast(`导出失败：${errorMessage(error)}`, 'error')
   } finally {
     exporting.value = ''
+  }
+}
+
+function onCardClick(book: Book): void {
+  if (selecting.value) toggleSelected(book)
+  else void openBook(book)
+}
+
+function toggleSelecting(): void {
+  selecting.value = !selecting.value
+  selectedIds.value = []
+  cardMenu.value = null
+}
+
+function toggleSelected(book: Book): void {
+  selectedIds.value = selectedIds.value.includes(book.id)
+    ? selectedIds.value.filter((id) => id !== book.id)
+    : [...selectedIds.value, book.id]
+}
+
+function toggleSelectAll(): void {
+  if (allFilteredSelected.value) {
+    const ids = new Set(filtered.value.map((book) => book.id))
+    selectedIds.value = selectedIds.value.filter((id) => !ids.has(id))
+  } else {
+    selectedIds.value = [...new Set([...selectedIds.value, ...filtered.value.map((book) => book.id)])]
+  }
+}
+
+function openCardMenu(book: Book, event: MouseEvent): void {
+  if (selecting.value) return
+  const target = event.currentTarget as HTMLElement | null
+  const rect = target?.getBoundingClientRect()
+  const x = rect ? rect.right - 4 : event.clientX
+  const y = rect ? rect.bottom + 6 : event.clientY
+  setCardMenuPosition(book, x, y)
+}
+
+function openCardMenuAt(book: Book, event: MouseEvent): void {
+  if (selecting.value) return
+  event.preventDefault()
+  setCardMenuPosition(book, event.clientX, event.clientY)
+}
+
+function setCardMenuPosition(book: Book, x: number, y: number): void {
+  cardMenu.value = {
+    book,
+    x: Math.max(8, Math.min(x, window.innerWidth - 176)),
+    y: Math.max(8, Math.min(y, window.innerHeight - 154))
+  }
+}
+
+function closeCardMenu(): void {
+  cardMenu.value = null
+}
+
+function openDetails(book: Book): void {
+  cardMenu.value = null
+  detailBook.value = book
+}
+
+function menuExport(book: Book): void {
+  cardMenu.value = null
+  void exportBook(book)
+}
+
+function menuDelete(book: Book): void {
+  cardMenu.value = null
+  confirmDelete(book)
+}
+
+async function exportSelected(): Promise<void> {
+  if (!selectedIds.value.length || exportingMany.value) return
+  exportingMany.value = true
+  try {
+    const paths = await window.api.library.exportMany(selectedIds.value)
+    if (paths.length) {
+      toast(`已导出 ${paths.length} 本书`, 'success')
+      selecting.value = false
+      selectedIds.value = []
+    }
+  } catch (error) {
+    toast(`导出失败：${errorMessage(error)}`, 'error')
+  } finally {
+    exportingMany.value = false
+  }
+}
+
+function requestBulkDelete(): void {
+  if (selectedIds.value.length) bulkDeleteOpen.value = true
+}
+
+async function doBulkDelete(): Promise<void> {
+  bulkDeleteOpen.value = false
+  const books = selectedBooks.value
+  if (!books.length) return
+  try {
+    for (const book of books) {
+      await window.api.library.remove(book.id)
+    }
+    await store.refreshReadingData()
+    selecting.value = false
+    selectedIds.value = []
+    toast(`已移除 ${books.length} 本书`)
+  } catch (error) {
+    toast(`删除失败：${errorMessage(error)}`, 'error')
   }
 }
 
@@ -256,7 +376,34 @@ function relativeTime(book: Book): string {
       <template v-else>
         <div class="shelf-head">
           <span>{{ filtered.length }} 本{{ query ? ` · 筛选 “${query}”` : '' }}</span>
-          <span class="shelf-tip">拖动窗口边缘可自由调整阅读界面大小</span>
+          <div class="shelf-tools">
+            <button class="select-mode-button" :class="{ active: selecting }" type="button" @click="toggleSelecting">
+              <AppIcon v-if="!selecting" name="check" :size="13" />
+              {{ selecting ? '完成' : '选择' }}
+            </button>
+            <span class="shelf-tip">拖动窗口边缘可自由调整阅读界面大小</span>
+          </div>
+        </div>
+
+        <div v-if="selecting" class="bulk-bar">
+          <button class="bulk-select-all" type="button" @click="toggleSelectAll">
+            <span class="bulk-check" :class="{ checked: allFilteredSelected }">
+              <AppIcon v-if="allFilteredSelected" name="check" :size="11" />
+            </span>
+            {{ allFilteredSelected ? '取消全选' : '全选' }}
+          </button>
+          <span class="bulk-count">已选 {{ selectedIds.length }} 本</span>
+          <div class="bulk-actions">
+            <button class="ghost-button" type="button" :disabled="!selectedIds.length || exportingMany" @click="exportSelected">
+              <AppIcon name="download" :size="14" />
+              {{ exportingMany ? '导出中…' : '导出' }}
+            </button>
+            <button class="ghost-button danger-text" type="button" :disabled="!selectedIds.length" @click="requestBulkDelete">
+              <AppIcon name="trash" :size="14" />
+              删除
+            </button>
+            <button class="ghost-button" type="button" @click="toggleSelecting">取消</button>
+          </div>
         </div>
 
         <div class="book-grid">
@@ -264,8 +411,10 @@ function relativeTime(book: Book): string {
             v-for="(book, index) in filtered"
             :key="book.id"
             class="book-card"
+            :class="{ selected: selectedIds.includes(book.id), selecting }"
             :style="{ animationDelay: `${Math.min(index, 12) * 35}ms` }"
-            @click="openBook(book)"
+            @click="onCardClick(book)"
+            @contextmenu.prevent.stop="openCardMenuAt(book, $event)"
           >
             <div class="cover">
               <img v-if="book.cover" :src="book.cover" :alt="book.title" loading="lazy" draggable="false" />
@@ -274,21 +423,28 @@ function relativeTime(book: Book): string {
                 <em>{{ book.title }}</em>
               </div>
               <div class="cover-stroke" />
-              <button class="delete-button" type="button" title="从书架移除" @click.stop="confirmDelete(book)">
-                <AppIcon name="trash" :size="14" />
+              <button
+                v-if="selecting"
+                class="select-check"
+                :class="{ checked: selectedIds.includes(book.id) }"
+                type="button"
+                :title="selectedIds.includes(book.id) ? '取消选择' : '选择这本书'"
+                @click.stop="toggleSelected(book)"
+              >
+                <AppIcon v-if="selectedIds.includes(book.id)" name="check" :size="14" />
               </button>
               <button
-                class="export-button"
+                v-else
+                class="more-button"
                 type="button"
-                :title="exporting === book.id ? '正在导出…' : '导出含标注的 EPUB'"
-                :disabled="exporting === book.id"
-                @click.stop="exportBook(book)"
+                title="更多操作"
+                @click.stop="openCardMenu(book, $event)"
               >
-                <AppIcon name="download" :size="14" />
+                <AppIcon name="more" :size="17" />
               </button>
               <div class="cover-action">
-                <span>{{ progressPercent(book) > 0 ? '继续阅读' : '开始阅读' }}</span>
-                <AppIcon name="arrow-right" :size="13" />
+                <span>{{ selecting ? (selectedIds.includes(book.id) ? '已选择' : '选择') : progressPercent(book) > 0 ? '继续阅读' : '开始阅读' }}</span>
+                <AppIcon :name="selecting ? 'check' : 'arrow-right'" :size="13" />
               </div>
             </div>
 
@@ -322,6 +478,33 @@ function relativeTime(book: Book): string {
       </div>
     </Transition>
 
+    <Transition name="fade">
+      <div v-if="cardMenu" class="menu-backdrop" @mousedown="closeCardMenu" @contextmenu.prevent="closeCardMenu" />
+    </Transition>
+    <Transition name="fade">
+      <div
+        v-if="cardMenu"
+        class="card-menu"
+        :style="{ left: `${cardMenu.x}px`, top: `${cardMenu.y}px` }"
+        @mousedown.stop
+      >
+        <button type="button" @click="openDetails(cardMenu.book)">
+          <AppIcon name="info" :size="14" />
+          详情
+        </button>
+        <button type="button" :disabled="Boolean(exporting)" @click="menuExport(cardMenu.book)">
+          <AppIcon name="download" :size="14" />
+          导出
+        </button>
+        <button class="menu-danger" type="button" @click="menuDelete(cardMenu.book)">
+          <AppIcon name="trash" :size="14" />
+          删除
+        </button>
+      </div>
+    </Transition>
+
+    <BookDetailDialog :open="Boolean(detailBook)" :book="detailBook" @close="detailBook = null" />
+
     <ConfirmDialog
       :open="Boolean(pendingDelete)"
       title="从书架移除？"
@@ -329,6 +512,15 @@ function relativeTime(book: Book): string {
       confirm-text="移除"
       @confirm="doDelete"
       @cancel="pendingDelete = null"
+    />
+
+    <ConfirmDialog
+      :open="bulkDeleteOpen"
+      title="移除选中的书？"
+      :message="`将移除 ${selectedIds.length} 本书。原始 EPUB 文件不受影响。`"
+      confirm-text="移除"
+      @confirm="doBulkDelete"
+      @cancel="bulkDeleteOpen = false"
     />
   </div>
 </template>
@@ -542,54 +734,181 @@ function relativeTime(book: Book): string {
   pointer-events: none;
 }
 
-.delete-button,
-.export-button {
+.more-button,
+.select-check {
   position: absolute;
   top: 8px;
-  width: 28px;
-  height: 28px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 9px;
   color: #fff;
-  background: rgba(12, 12, 10, 0.45);
-  backdrop-filter: blur(6px);
+  background: rgba(12, 12, 10, 0.52);
+  backdrop-filter: blur(8px);
+}
+
+.more-button {
+  right: 8px;
   opacity: 0;
   transform: translateY(-3px);
+  pointer-events: none;
   transition: opacity 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-.delete-button {
-  right: 8px;
-}
-
-.export-button {
-  left: 8px;
-  z-index: 2;
-}
-
-.book-card:hover .delete-button,
-.book-card:hover .export-button {
+.book-card:hover .more-button {
   opacity: 1;
   transform: none;
   pointer-events: auto;
 }
 
-.export-button {
-  pointer-events: none;
-}
-
-.delete-button:hover {
-  background: var(--danger);
-}
-
-.export-button:hover {
+.more-button:hover {
   background: var(--accent);
 }
 
-.export-button:disabled {
-  opacity: 0.55;
-  cursor: wait;
+.select-check {
+  left: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(12, 12, 10, 0.38);
+}
+
+.select-check.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.book-card.selected .cover {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.book-card.selecting .cover {
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.shelf-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.select-mode-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.select-mode-button:hover,
+.select-mode-button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.bulk-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-soft);
+}
+
+.bulk-check {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.bulk-check.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.bulk-count {
+  flex: 1;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bulk-actions .ghost-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  font-size: 11px;
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 330;
+}
+
+.card-menu {
+  position: fixed;
+  z-index: 331;
+  width: 160px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-menu button {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: left;
+}
+
+.card-menu button:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.card-menu .menu-danger {
+  color: var(--danger);
+}
+
+.card-menu .menu-danger:hover {
+  background: rgba(180, 70, 60, 0.1);
 }
 
 .cover-action {

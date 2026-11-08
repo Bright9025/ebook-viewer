@@ -206,6 +206,7 @@ function normalizeBook(value: unknown): Book {  const book = value as Partial<Bo
     id: String(book.id ?? ''),
     title: String(book.title ?? '未命名'),
     author: String(book.author ?? ''),
+    description: String(book.description ?? ''),
     cover: typeof book.cover === 'string' ? book.cover : '',
     fileName: String(book.fileName ?? ''),
     addedAt: Number(book.addedAt ?? Date.now()),

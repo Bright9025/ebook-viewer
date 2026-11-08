@@ -277,24 +277,23 @@ try {
     'reading-notes document contains annotation notes'
   )
 
-  const inlinePath = join(root, '.tmp-e2e', 'inline-export.epub')
-  const inlineExported = await page.evaluate(
-    async ({ id, path }) => window.api.library.export(id, path, 'inline'),
-    { id: bookId, path: inlinePath }
+  const purePath = join(root, '.tmp-e2e', 'pure-export.epub')
+  const pureExported = await page.evaluate(
+    async ({ id, path }) => window.api.library.export(id, path, 'original'),
+    { id: bookId, path: purePath }
   )
-  assert(inlineExported === inlinePath, 'inline EPUB export writes the target file')
-  const inlineZip = await JSZip.loadAsync(await readFile(inlinePath))
-  const inlineChapters = await Promise.all(
-    Object.keys(inlineZip.files)
+  assert(pureExported === purePath, 'pure EPUB export writes the target file')
+  const pureZip = await JSZip.loadAsync(await readFile(purePath))
+  assert(!pureZip.file('META-INF/ebook-viewer.json'), 'pure export has no reading-data sidecar')
+  const pureChapters = await Promise.all(
+    Object.keys(pureZip.files)
       .filter((name) => name.endsWith('.xhtml'))
-      .map((name) => inlineZip.file(name).async('string'))
+      .map((name) => pureZip.file(name).async('string'))
   )
-  const inlineContent = inlineChapters.join('\n')
-  assert(inlineContent.includes('ev-annotation'), 'inline export wraps annotated text')
-  assert(inlineContent.includes('这是一条测试笔记'), 'inline export keeps annotation notes')
+  assert(!pureChapters.join('\n').includes('ev-annotation'), 'pure export has no inline annotations')
   assert(
-    !Object.keys(inlineZip.files).some((name) => name.endsWith('ebook-viewer-notes.xhtml')),
-    'inline export does not add a separate notes chapter'
+    !Object.keys(pureZip.files).some((name) => name.endsWith('ebook-viewer-notes.xhtml')),
+    'pure export has no reading-notes chapter'
   )
 
   const importedData = await page.evaluate(
@@ -302,18 +301,18 @@ try {
       window.api.library.add({ sourcePath, title: 'Imported data edition', author: 'Test' }),
     exportPath
   )
-  const importedInline = await page.evaluate(
+  const importedPure = await page.evaluate(
     async (sourcePath) =>
-      window.api.library.add({ sourcePath, title: 'Imported inline edition', author: 'Test' }),
-    inlinePath
+      window.api.library.add({ sourcePath, title: 'Imported pure edition', author: 'Test' }),
+    purePath
   )
-  for (const imported of [importedData, importedInline]) {
-    const readingAnnotations = await page.evaluate((id) => window.api.annotations.list(id), imported.id)
-    const readingBookmarks = await page.evaluate((id) => window.api.bookmarks.list(id), imported.id)
-    assert(readingAnnotations.length >= 2, `${imported.title} restores annotations`)
-    assert(readingBookmarks.length === 1, `${imported.title} restores bookmarks`)
-    assert(imported.progress.cfi === exportCfi, `${imported.title} restores progress`)
-  }
+  const importedDataAnnotations = await page.evaluate((id) => window.api.annotations.list(id), importedData.id)
+  const importedDataBookmarks = await page.evaluate((id) => window.api.bookmarks.list(id), importedData.id)
+  assert(importedDataAnnotations.length >= 2, 'data edition restores annotations')
+  assert(importedDataBookmarks.length === 1, 'data edition restores bookmarks')
+  assert(importedData.progress.cfi === exportCfi, 'data edition restores progress')
+  const importedPureAnnotations = await page.evaluate((id) => window.api.annotations.list(id), importedPure.id)
+  assert(importedPureAnnotations.length === 0, 'pure edition stays free of annotations')
 
   const cfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
   const opened = await page.evaluate(

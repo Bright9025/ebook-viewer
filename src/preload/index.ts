@@ -35,7 +35,9 @@ const api: Api = {
     readPath: (path) => ipcRenderer.invoke('book:read-path', path) as Promise<Uint8Array>,
     touch: (id) => ipcRenderer.invoke('library:touch', id) as Promise<void>,
     export: (id, targetPath, mode?: ExportMode) =>
-      ipcRenderer.invoke('library:export', id, targetPath, mode) as Promise<string | null>
+      ipcRenderer.invoke('library:export', id, targetPath, mode) as Promise<string | null>,
+    exportMany: (ids: string[], mode?: ExportMode, targetFolder?: string) =>
+      ipcRenderer.invoke('library:export-many', ids, mode, targetFolder) as Promise<string[]>
   },
   settings: {
     set: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', patch) as Promise<AppSettings>

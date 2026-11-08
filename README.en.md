@@ -15,7 +15,10 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 - 📚 **Local library** – Import EPUB files by button or drag-and-drop; extract covers, titles and authors; remember recently read books and progress.
 - 📖 **Focused reader** – Horizontal pagination, table of contents, bookmarks, font size / line height / margins / font family / justification.
 - ✍️ **Text annotations** – Select text, then right-click to copy, add a five-color highlight, underline, wavy underline or note. Annotations are saved per book and can be jumped to, edited or deleted from the sidebar.
-- 📤 **Two EPUB export modes** – Export a data version with a “Reading Notes” appendix, or an inline version that writes highlights / underlines / wavy underlines into the original chapters. Both produce a single EPUB file.
+- 📤 **Two export modes** – The data version includes Reading Notes, annotations, bookmarks and progress; the pure version copies the original EPUB with no annotations.
+- 🧭 **Library actions** – Hover a book to reveal “···”, or right-click it, for details, export and delete.
+- ☑️ **Bulk actions** – Enter selection mode on the library page to export or delete multiple books.
+- 🏷️ **Duplicate imports** – Importing books with the same title shows `Title-1`, `Title-2`, etc.
 - 🌗 **Light & dark** – Switch the UI and book typography together, or follow the system theme; restore the previous theme on launch without a white flash.
 - 🪟 **Resizable window** – Re-paginate when the window, font size or margins change, keeping the previous anchor sentence on the current page without reloading the book.
 - 🫥 **Stealth mode** – A small transparent, topmost window whose text color follows the pixels underneath, character by character. Drag it, resize it, hide it or exit it at any time.
@@ -137,7 +140,7 @@ For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0
 4. Select text and right-click to copy, add a five-color highlight, underline or wavy underline, or a note; click an existing annotation to edit or delete it.
 5. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
 6. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
-7. Click the download button on a library card or in the reader toolbar, choose an export mode and a destination folder; the file name is generated automatically.
+7. Click export in a book's “···” menu or in the reader toolbar, choose an export mode and a destination folder; the file name is generated automatically.
 
 ## ⌨️ Shortcuts
 
@@ -209,11 +212,11 @@ The interaction follows the core flow in the W3C [EPUB Annotations Use Cases and
 - Highlights, underlines and wavy underlines support yellow / green / blue / pink / black. The note dialog also offers **Note only**, which adds no visual mark.
 - Each annotation stores its CFI, quote, chapter, progress, color and style; click a highlight or underline to edit its note/color/style or delete it. Wavy underlines use the CSS Custom Highlight API.
 - The top-bar **Annotations** button opens a sidebar with all annotations, jump targets and delete actions.
-- Notes are plain text and stored locally in `data.json`. Import/export, annotation threads and image annotations are not included in this version.
+- Notes are plain text and stored locally in `data.json`. Annotation threads and image annotations are not included in this version.
 
-## 📤 Two EPUB Export Modes
+## 📤 Two Export Modes
 
-Click the download button on a library card or in the reader toolbar, choose a mode and a destination folder. The file name is generated from the book title; both modes produce a single `.epub` file:
+Use the “···” menu on a book or the reader toolbar, choose a mode and a destination folder. The file name is generated from the book title; both modes produce a single `.epub` file:
 
 ### Data version (with Reading Notes)
 
@@ -221,18 +224,15 @@ Click the download button on a library card or in the reader toolbar, choose a m
 - Adds `META-INF/ebook-viewer.json` with the complete annotation set, bookmarks and current progress (CFI, percentage, chapter and sentence).
 - Adds a separate “Reading Notes” XHTML chapter listing progress, bookmarks and all annotations.
 - Automatically registers the chapter in the original OPF manifest and spine.
+- Restores annotations, bookmarks and progress when imported back into this app.
 
-### Inline version (written into chapters)
+### Pure version (original text only)
 
-- Also copies the original EPUB without modifying it.
-- Writes annotations directly into the matching chapter XHTML: highlights use a background color; underlines and wavy underlines use `text-decoration`.
-- Annotations with notes receive a `title` tooltip.
-- Keeps `META-INF/ebook-viewer.json` as a complete data backup.
-- Does not add a separate notes chapter; annotations are visible while reading the original text.
+- Copies the original EPUB without any annotations, bookmarks, progress or reading-notes chapter.
+- Removes data previously written by this app if the source already contains it.
+- Suitable for sharing or archiving a clean ebook.
 
-Both exported EPUBs restore annotations, bookmarks and reading progress when imported back into this app. The inline version also removes its temporary annotation `<span>` wrappers before re-rendering annotations from the original CFIs.
-
-> If Windows security software or folder permissions reject the selected directory, the export is automatically written to the app's writable `exports` folder, with a prompt and an “Open folder” button. Inline annotations are ordinary `<span class="ev-annotation ...">` elements and should work in most EPUB readers. The Ebook Viewer JSON remains the full data source. Full EPUB Annotations import/export is not implemented yet.
+> If Windows security software or folder permissions reject the selected directory, the export is automatically written to the app's writable `exports` folder, with a prompt and an “Open folder” button. Full EPUB Annotations import/export is not implemented yet.
 
 ## 🫥 Stealth Mode
 
