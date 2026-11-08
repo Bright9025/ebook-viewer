@@ -180,7 +180,7 @@ If a hotkey is occupied by another application, the settings panel reports it. H
 The app stores data next to the executable in a portable `data/` directory:
 
 - Development: `ebook-viewer/.data/`
-- Installed app: `%LOCALAPPDATA%\Ebook Viewer\`
+- Installed / portable: `%LOCALAPPDATA%\Ebook Viewer\`
 - Chromium profile: still next to the executable in `data/` (safe to lose on update)
 
 Contents:

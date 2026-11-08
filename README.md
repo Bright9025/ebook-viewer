@@ -180,7 +180,7 @@ release/
 书库数据与 Chromium 临时配置分开放置，安装更新不会再覆盖书籍和进度：
 
 - 开发时：`ebook-viewer/.data/`
-- 安装版：`%LOCALAPPDATA%\Ebook Viewer\`
+- 安装版 / 解压版：`%LOCALAPPDATA%\Ebook Viewer\`
 - Chromium 配置：仍放在程序旁边的 `data/`，更新时丢失也没有关系
 
 其中：
