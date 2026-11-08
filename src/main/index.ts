@@ -1,9 +1,10 @@
 import { app, nativeTheme, protocol, session } from 'electron'
-import { promises as fs, mkdirSync } from 'node:fs'
+import { existsSync, promises as fs, mkdirSync } from 'node:fs'
 import { dirname, join, normalize, sep, basename } from 'node:path'
 import { registerIpc } from './ipc'
 import { initStore, getStore } from './store'
 import { fontMimeType } from './fonts'
+import { setupAutoUpdater } from './updater'
 import { registerHotkeys, unregisterHotkeys } from './shortcuts'
 import { createTray, destroyTray } from './tray'
 import {
@@ -16,27 +17,24 @@ import {
   showMain
 } from './windows'
 
-// Keep app data next to the project / portable build. Some Windows sessions
-// (or security products) crash Chromium while it initializes a profile under
-// %APPDATA%; a writable local folder avoids that entirely.
-// EBOOK_USER_DATA still wins, which is what the e2e script uses.
-const defaultDataDir = app.isPackaged
+// Keep Chromium's profile next to the executable: some Windows sessions and
+// security products crash when Chromium initializes a profile under %APPDATA%.
+// The actual store lives in a separate per-user folder so installing an update
+// cannot remove the library, books, annotations or reading progress.
+const chromiumDataDir = app.isPackaged
   ? join(dirname(process.execPath), 'data')
   : join(app.getAppPath(), '.data')
+const localAppData = process.env.LOCALAPPDATA || app.getPath('appData')
+const storeDataDir =
+  process.env.EBOOK_USER_DATA ||
+  (app.isPackaged ? join(localAppData, 'Ebook Viewer') : chromiumDataDir)
 
-if (process.env.EBOOK_USER_DATA) {
+if (process.env.EBOOK_USER_DATA || chromiumDataDir) {
   try {
-    mkdirSync(process.env.EBOOK_USER_DATA, { recursive: true })
-    app.setPath('userData', process.env.EBOOK_USER_DATA)
+    mkdirSync(process.env.EBOOK_USER_DATA || chromiumDataDir, { recursive: true })
+    app.setPath('userData', process.env.EBOOK_USER_DATA || chromiumDataDir)
   } catch (error) {
-    console.warn('[app] failed to set user data dir', error)
-  }
-} else {
-  try {
-    mkdirSync(defaultDataDir, { recursive: true })
-    app.setPath('userData', defaultDataDir)
-  } catch (error) {
-    console.warn('[app] local data dir unavailable, using default', error)
+    console.warn('[app] failed to set chromium data dir', error)
   }
 }
 
@@ -84,7 +82,8 @@ async function bootstrap(): Promise<void> {
   })
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => permission === 'geolocation')
 
-  initStore(app.getPath('userData'))
+  await migrateLegacyStore()
+  initStore(storeDataDir)
   await getStore().load()
   const themeMode = getStore().settings.theme
   nativeTheme.themeSource = themeMode === 'auto' ? 'system' : themeMode
@@ -92,6 +91,7 @@ async function bootstrap(): Promise<void> {
   registerAppProtocol()
   registerIpc()
   createMainWindow()
+  setupAutoUpdater()
   createTray()
   const hotkeys = registerHotkeys()
   setTimeout(() => {
@@ -105,6 +105,34 @@ async function bootstrap(): Promise<void> {
   })
 
   app.on('activate', () => showMain())
+}
+
+async function migrateLegacyStore(): Promise<void> {
+  if (process.env.EBOOK_USER_DATA || !app.isPackaged) return
+  const targetData = join(storeDataDir, 'data.json')
+  if (existsSync(targetData)) return
+  const candidates = [
+    join(dirname(process.execPath), 'data'),
+    join(localAppData, 'Programs', 'Ebook Viewer', 'data'),
+    join(localAppData, 'Programs', 'ebook-viewer', 'data'),
+    join(app.getPath('appData'), 'ebook-viewer')
+  ]
+  for (const source of candidates) {
+    if (source === storeDataDir || !existsSync(join(source, 'data.json'))) continue
+    try {
+      await fs.mkdir(storeDataDir, { recursive: true })
+      await fs.copyFile(join(source, 'data.json'), targetData)
+      for (const directory of ['books', 'fonts', 'exports']) {
+        const from = join(source, directory)
+        if (!existsSync(from)) continue
+        await fs.cp(from, join(storeDataDir, directory), { recursive: true, force: false })
+      }
+      console.info('[app] migrated legacy store from', source)
+      return
+    } catch (error) {
+      console.warn('[app] failed to migrate legacy store', source, error)
+    }
+  }
 }
 
 function registerAppProtocol(): void {

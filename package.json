@@ -1,6 +1,6 @@
 {
   "name": "ebook-viewer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A focused EPUB reader with light/dark themes and a stealth reading overlay.",
   "main": "./out/main/index.js",
   "author": "Bright9025",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.15",
+    "electron-updater": "^6.8.11",
     "jszip": "^3.10.2"
   },
   "devDependencies": {

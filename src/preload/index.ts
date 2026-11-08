@@ -14,7 +14,8 @@ import type {
   StealthContextPayload,
   StealthInitPayload,
   ThemeMode,
-  UnderlayCapture
+  UnderlayCapture,
+  UpdateStatus
 } from '../shared/types'
 
 function on<T>(channel: string) {
@@ -46,6 +47,10 @@ const api: Api = {
   fonts: {
     import: (sourcePath?: string) => ipcRenderer.invoke('fonts:import', sourcePath) as Promise<import('../shared/types').CustomFont | null>,
     remove: (fileName: string) => ipcRenderer.invoke('fonts:remove', fileName) as Promise<void>
+  },
+  updates: {
+    check: () => ipcRenderer.invoke('updates:check') as Promise<UpdateStatus>,
+    install: () => ipcRenderer.send('updates:install')
   },
   progress: {
     set: (progress: ProgressPayload) => ipcRenderer.invoke('progress:set', progress) as Promise<void>
@@ -93,7 +98,8 @@ const api: Api = {
     onRemoteProgress: on<ProgressPayload>('events:remote-progress'),
     onSettingsChanged: on<AppSettings>('events:settings-changed'),
     onHotkeys: on<HotkeyStatus>('events:hotkeys'),
-    onStealthVisibility: on<boolean>('events:stealth-visibility')
+    onStealthVisibility: on<boolean>('events:stealth-visibility'),
+    onUpdateStatus: on<UpdateStatus>('events:update-status')
   },
   pathForFile: (file: File) => {
     try {

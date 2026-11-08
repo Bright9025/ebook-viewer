@@ -108,6 +108,13 @@ export interface ImportRequest {
   cover: string
 }
 
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error' | 'unsupported'
+  version?: string
+  percent?: number
+  message?: string
+}
+
 export interface BgSample {
   r: number
   g: number

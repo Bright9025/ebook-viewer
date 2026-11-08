@@ -1,6 +1,11 @@
 appId: com.ebookviewer.app
 productName: Ebook Viewer
 copyright: Copyright © 2026 Bright9025
+publish:
+  provider: github
+  owner: Bright9025
+  repo: ebook-viewer
+  releaseType: release
 directories:
   output: release
   buildResources: resources
@@ -29,6 +34,7 @@ win:
         - x64
   artifactName: Ebook-Viewer-${version}-${arch}.${ext}
 nsis:
+  include: build/installer.nsh
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

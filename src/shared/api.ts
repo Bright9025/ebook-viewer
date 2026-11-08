@@ -15,7 +15,8 @@ import type {
   StealthContextPayload,
   StealthInitPayload,
   ThemeMode,
-  UnderlayCapture
+  UnderlayCapture,
+  UpdateStatus
 } from './types'
 
 export interface LibraryApi {
@@ -38,6 +39,11 @@ export interface FontsApi {
 export interface SettingsApi {
   set(patch: Partial<AppSettings>): Promise<AppSettings>
   reset(): Promise<AppSettings>
+}
+
+export interface UpdatesApi {
+  check(): Promise<UpdateStatus>
+  install(): void
 }
 
 export interface ProgressApi {
@@ -92,12 +98,14 @@ export interface EventsApi {
   onSettingsChanged(callback: (settings: AppSettings) => void): () => void
   onHotkeys(callback: (status: HotkeyStatus) => void): () => void
   onStealthVisibility(callback: (visible: boolean) => void): () => void
+  onUpdateStatus(callback: (status: UpdateStatus) => void): () => void
 }
 
 export interface Api {
   library: LibraryApi
   settings: SettingsApi
   fonts: FontsApi
+  updates: UpdatesApi
   progress: ProgressApi
   bookmarks: BookmarksApi
   annotations: AnnotationsApi

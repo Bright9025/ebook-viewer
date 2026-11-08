@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { AnnotationColorSetting, CustomFont, ReaderFont, ThemeMode } from '@shared/types'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import type { AnnotationColorSetting, CustomFont, ReaderFont, ThemeMode, UpdateStatus } from '@shared/types'
 import { defaultSettings } from '@shared/defaults'
 import { fontLabel, fontStack, readerFontLabels } from '../lib/theme'
 import { useAppStore } from '../stores/app'
@@ -22,6 +22,29 @@ const fonts = computed<ReaderFont[]>(() => [
 ])
 const fontSample = computed(() => fontStack(store.settings.reader.font, store.settings.customFonts))
 const customFonts = computed(() => store.settings.customFonts)
+const updateStatus = ref<UpdateStatus>({ state: 'idle' })
+const updateText = computed(() => {
+  const status = updateStatus.value
+  if (status.state === 'checking') return '正在检查更新…'
+  if (status.state === 'available') return `发现新版本 ${status.version ?? ''}，正在下载…`
+  if (status.state === 'downloading') return `正在下载更新 ${status.percent ?? 0}%`
+  if (status.state === 'downloaded') return `新版本 ${status.version ?? ''} 已下载，退出应用后自动安装`
+  if (status.state === 'not-available') return '已经是最新版本'
+  if (status.state === 'unsupported') return '开发模式不检查更新'
+  if (status.state === 'error') return `检查更新失败：${status.message ?? '未知错误'}`
+  return '启动时会自动检查更新'
+})
+let offUpdateStatus: (() => void) | null = null
+
+onMounted(() => {
+  offUpdateStatus = window.api.events.onUpdateStatus((status) => {
+    updateStatus.value = status
+  })
+})
+
+onBeforeUnmount(() => {
+  offUpdateStatus?.()
+})
 const confirmReset = ref(false)
 const themeOptions: Array<{ value: ThemeMode; label: string }> = [
   { value: 'light', label: '明亮' },
@@ -107,6 +130,19 @@ async function resetDefaults(): Promise<void> {
     }
   }
   await store.updateSettings(JSON.parse(JSON.stringify(defaultSettings)))
+}
+
+async function checkUpdates(): Promise<void> {
+  updateStatus.value = { state: 'checking' }
+  try {
+    updateStatus.value = await window.api.updates.check()
+  } catch (error) {
+    updateStatus.value = { state: 'error', message: String(error) }
+  }
+}
+
+function installUpdate(): void {
+  window.api.updates.install()
 }
 </script>
 
@@ -206,6 +242,19 @@ async function resetDefaults(): Promise<void> {
               <button class="palette-add" type="button" @click="addColor">
                 <AppIcon name="plus" :size="13" />
                 增加颜色
+              </button>
+            </div>
+          </section>
+
+          <section class="settings-section update-section">
+            <h3>应用更新</h3>
+            <p class="settings-note">{{ updateText }}</p>
+            <div class="update-actions">
+              <button class="ghost-button" type="button" :disabled="updateStatus.state === 'checking'" @click="checkUpdates">
+                检查更新
+              </button>
+              <button v-if="updateStatus.state === 'downloaded'" class="primary-button" type="button" @click="installUpdate">
+                重启并安装
               </button>
             </div>
           </section>
@@ -487,6 +536,19 @@ async function resetDefaults(): Promise<void> {
 .reset-section .danger-button {
   height: 30px;
   margin-top: 12px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.update-actions .ghost-button,
+.update-actions .primary-button {
+  height: 30px;
   padding: 0 12px;
   font-size: 11px;
 }

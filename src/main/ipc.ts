@@ -6,6 +6,7 @@ import type { Annotation, AppSettings, Bookmark, ExportMode, ProgressPayload, St
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
 import { exportBookAsEpub, exportBooksAsEpub } from './export'
 import { importCustomFont, removeCustomFont } from './fonts'
+import { checkForUpdates, installUpdate } from './updater'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
 import { refreshTrayMenu } from './tray'
@@ -88,6 +89,9 @@ export function registerIpc(): void {
   ipcMain.handle('fonts:remove', async (_event, fileName: string) => {
     await removeCustomFont(fileName)
   })
+
+  ipcMain.handle('updates:check', async () => checkForUpdates())
+  ipcMain.on('updates:install', () => installUpdate())
 
   ipcMain.handle('settings:set', async (_event, patch: Partial<AppSettings>) => {
     const store = getStore()
