@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { autoUpdater } from 'electron-updater'
@@ -17,6 +17,7 @@ let state: UpdateState = { launchCount: 0 }
 let promptOpen = false
 let installAfterDownload = false
 let promptedVersion = ''
+let pendingAtStartup = false
 
 function publish(next: UpdateStatus): UpdateStatus {
   status = next
@@ -78,44 +79,14 @@ async function promptForUpdate(): Promise<void> {
   const pending = state.pendingVersion
   const version = downloaded && compareVersions(downloaded, current) > 0 ? downloaded : pending
   if (!version || compareVersions(version, current) <= 0) return
-  if (state.launchCount < 2) return
   if (status.state === 'downloading') return
+  if (!downloaded && !pendingAtStartup) return
   if (!downloaded && promptedVersion === version) return
   const window = getMainWindow()
   if (!window || window.isDestroyed()) return
   promptOpen = true
   if (!downloaded) promptedVersion = version
-  try {
-    if (downloaded && downloaded === version) {
-      const result = await dialog.showMessageBox(window, {
-        type: 'info',
-        title: '更新已下载',
-        message: `新版本 v${version} 已下载`,
-        detail: '更新包来自 GitHub Releases，并经过 electron-updater 校验。安装不会修改你的书库、书籍或阅读进度。是否现在重启安装？',
-        buttons: ['立即重启安装', '稍后'],
-        defaultId: 1,
-        cancelId: 1,
-        noLink: true
-      })
-      if (result.response === 0) installUpdate()
-      return
-    }
-
-    const result = await dialog.showMessageBox(window, {
-      type: 'info',
-      title: '发现新版本',
-      message: `发现 Ebook Viewer v${version}`,
-      detail:
-        '更新来自 GitHub Releases，并会校验下载文件的哈希。是否现在下载？下载完成后会再次询问是否重启安装，不会静默安装。',
-      buttons: ['立即下载', '稍后'],
-      defaultId: 1,
-      cancelId: 1,
-      noLink: true
-    })
-    if (result.response === 0) await downloadUpdate()
-  } finally {
-    promptOpen = false
-  }
+  window.webContents.send('events:update-prompt', { version, downloaded: Boolean(downloaded) })
 }
 
 export function setupAutoUpdater(storeDir: string): void {
@@ -126,6 +97,7 @@ export function setupAutoUpdater(storeDir: string): void {
   statePath = join(storeDir, 'update-state.json')
   state = readState()
   state.launchCount += 1
+  pendingAtStartup = Boolean(state.pendingVersion || state.downloadedVersion)
   clearStaleState()
   saveState()
 
@@ -192,6 +164,7 @@ export async function downloadUpdate(): Promise<UpdateStatus> {
   if (!app.isPackaged) return publish({ state: 'unsupported', message: '开发模式不检查更新' })
   const pending = state.pendingVersion
   if (!pending) return publish({ state: 'not-available', message: '没有可下载的更新' })
+  promptOpen = false
   try {
     publish({ state: 'downloading', version: pending, percent: 0, message: '正在下载更新' })
     await autoUpdater.checkForUpdates()
@@ -202,8 +175,13 @@ export async function downloadUpdate(): Promise<UpdateStatus> {
   }
 }
 
+export function dismissUpdatePrompt(): void {
+  promptOpen = false
+}
+
 export function installUpdate(): void {
   if (!app.isPackaged) return
+  promptOpen = false
   if (status.state === 'downloaded') {
     autoUpdater.quitAndInstall(false, true)
     return

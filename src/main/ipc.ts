@@ -6,7 +6,7 @@ import type { Annotation, AppSettings, Bookmark, ExportMode, ProgressPayload, St
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
 import { exportBookAsEpub, exportBooksAsEpub } from './export'
 import { importCustomFont, removeCustomFont } from './fonts'
-import { checkForUpdates, downloadUpdate, installUpdate } from './updater'
+import { checkForUpdates, dismissUpdatePrompt, downloadUpdate, installUpdate } from './updater'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
 import { refreshTrayMenu } from './tray'
@@ -92,6 +92,7 @@ export function registerIpc(): void {
 
   ipcMain.handle('updates:check', async () => checkForUpdates())
   ipcMain.handle('updates:download', async () => downloadUpdate())
+  ipcMain.on('updates:dismiss', () => dismissUpdatePrompt())
   ipcMain.on('updates:install', () => installUpdate())
 
   ipcMain.handle('settings:set', async (_event, patch: Partial<AppSettings>) => {

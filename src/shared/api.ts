@@ -16,7 +16,8 @@ import type {
   StealthInitPayload,
   ThemeMode,
   UnderlayCapture,
-  UpdateStatus
+  UpdateStatus,
+  UpdatePrompt
 } from './types'
 
 export interface LibraryApi {
@@ -44,6 +45,7 @@ export interface SettingsApi {
 export interface UpdatesApi {
   check(): Promise<UpdateStatus>
   download(): Promise<UpdateStatus>
+  dismiss(): void
   install(): void
 }
 
@@ -100,6 +102,7 @@ export interface EventsApi {
   onHotkeys(callback: (status: HotkeyStatus) => void): () => void
   onStealthVisibility(callback: (visible: boolean) => void): () => void
   onUpdateStatus(callback: (status: UpdateStatus) => void): () => void
+  onUpdatePrompt(callback: (prompt: UpdatePrompt) => void): () => void
 }
 
 export interface Api {

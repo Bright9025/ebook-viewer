@@ -15,6 +15,7 @@ import type {
   StealthInitPayload,
   ThemeMode,
   UnderlayCapture,
+  UpdatePrompt,
   UpdateStatus
 } from '../shared/types'
 
@@ -51,6 +52,7 @@ const api: Api = {
   updates: {
     check: () => ipcRenderer.invoke('updates:check') as Promise<UpdateStatus>,
     download: () => ipcRenderer.invoke('updates:download') as Promise<UpdateStatus>,
+    dismiss: () => ipcRenderer.send('updates:dismiss'),
     install: () => ipcRenderer.send('updates:install')
   },
   progress: {
@@ -100,7 +102,8 @@ const api: Api = {
     onSettingsChanged: on<AppSettings>('events:settings-changed'),
     onHotkeys: on<HotkeyStatus>('events:hotkeys'),
     onStealthVisibility: on<boolean>('events:stealth-visibility'),
-    onUpdateStatus: on<UpdateStatus>('events:update-status')
+    onUpdateStatus: on<UpdateStatus>('events:update-status'),
+    onUpdatePrompt: on<UpdatePrompt>('events:update-prompt')
   },
   pathForFile: (file: File) => {
     try {

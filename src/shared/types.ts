@@ -115,6 +115,11 @@ export interface UpdateStatus {
   message?: string
 }
 
+export interface UpdatePrompt {
+  version: string
+  downloaded: boolean
+}
+
 export interface BgSample {
   r: number
   g: number
