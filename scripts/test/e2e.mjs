@@ -276,6 +276,26 @@ try {
     'reading-notes document contains annotation notes'
   )
 
+  const inlinePath = join(root, '.tmp-e2e', 'inline-export.epub')
+  const inlineExported = await page.evaluate(
+    async ({ id, path }) => window.api.library.export(id, path, 'inline'),
+    { id: bookId, path: inlinePath }
+  )
+  assert(inlineExported === inlinePath, 'inline EPUB export writes the target file')
+  const inlineZip = await JSZip.loadAsync(await readFile(inlinePath))
+  const inlineChapters = await Promise.all(
+    Object.keys(inlineZip.files)
+      .filter((name) => name.endsWith('.xhtml'))
+      .map((name) => inlineZip.file(name).async('string'))
+  )
+  const inlineContent = inlineChapters.join('\n')
+  assert(inlineContent.includes('ev-annotation'), 'inline export wraps annotated text')
+  assert(inlineContent.includes('这是一条测试笔记'), 'inline export keeps annotation notes')
+  assert(
+    !Object.keys(inlineZip.files).some((name) => name.endsWith('ebook-viewer-notes.xhtml')),
+    'inline export does not add a separate notes chapter'
+  )
+
   const cfi = await page.evaluate(() => window.__ebookTest.anchorCfi())
   const opened = await page.evaluate(
     async ({ bookId, cfi }) => window.api.stealth.open({ bookId, cfi }),

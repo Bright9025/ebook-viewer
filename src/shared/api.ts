@@ -5,6 +5,7 @@ import type {
   AppSettings,
   Book,
   Bookmark,
+  ExportMode,
   HotkeyStatus,
   ImportRequest,
   InitData,
@@ -24,7 +25,7 @@ export interface LibraryApi {
   read(id: string): Promise<Uint8Array>
   readPath(path: string): Promise<Uint8Array>
   touch(id: string): Promise<void>
-  export(id: string, targetPath?: string): Promise<string | null>
+  export(id: string, targetPath?: string, mode?: ExportMode): Promise<string | null>
 }
 
 export interface SettingsApi {

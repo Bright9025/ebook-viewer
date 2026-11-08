@@ -33,6 +33,7 @@ export interface Bookmark {
 
 export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'black'
 export type AnnotationStyle = 'highlight' | 'underline' | 'wavy' | 'none'
+export type ExportMode = 'data' | 'inline'
 
 export interface Annotation {
   id: string

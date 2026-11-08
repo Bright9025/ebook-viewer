@@ -2,7 +2,7 @@ import { app, BrowserWindow, clipboard, desktopCapturer, dialog, ipcMain, native
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import type { Annotation, AppSettings, Bookmark, ProgressPayload, StealthContextPayload } from '../shared/types'
+import type { Annotation, AppSettings, Bookmark, ExportMode, ProgressPayload, StealthContextPayload } from '../shared/types'
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
 import { exportBookAsEpub } from './export'
 import { registerHotkeys } from './shortcuts'
@@ -57,9 +57,9 @@ export function registerIpc(): void {
 
   ipcMain.handle('book:read', async (_event, id: string) => readBook(id))
   ipcMain.handle('book:read-path', async (_event, path: string) => readPath(path))
-  ipcMain.handle('library:export', async (event, id: string, targetPath?: string) => {
+  ipcMain.handle('library:export', async (event, id: string, targetPath?: string, mode?: ExportMode) => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow()
-    return exportBookAsEpub(id, win, targetPath)
+    return exportBookAsEpub(id, win, targetPath, mode)
   })
   ipcMain.handle('library:touch', async (_event, id: string) => {
     await touchBook(id)

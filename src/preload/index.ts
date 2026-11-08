@@ -6,6 +6,7 @@ import type {
   AnnotationStyle,
   AppSettings,
   Book,
+  ExportMode,
   HotkeyStatus,
   InitData,
   ProgressPayload,
@@ -33,7 +34,8 @@ const api: Api = {
     read: (id) => ipcRenderer.invoke('book:read', id) as Promise<Uint8Array>,
     readPath: (path) => ipcRenderer.invoke('book:read-path', path) as Promise<Uint8Array>,
     touch: (id) => ipcRenderer.invoke('library:touch', id) as Promise<void>,
-    export: (id, targetPath) => ipcRenderer.invoke('library:export', id, targetPath) as Promise<string | null>
+    export: (id, targetPath, mode?: ExportMode) =>
+      ipcRenderer.invoke('library:export', id, targetPath, mode) as Promise<string | null>
   },
   settings: {
     set: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', patch) as Promise<AppSettings>
