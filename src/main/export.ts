@@ -1,6 +1,6 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { promises as fs } from 'node:fs'
-import { dirname, extname, join, posix } from 'node:path'
+import { basename, dirname, extname, join, posix } from 'node:path'
 import JSZip from 'jszip'
 import type { Annotation, Bookmark, ExportMode } from '../shared/types'
 import { readBook } from './library'
@@ -45,15 +45,17 @@ export async function exportBookAsEpub(
   if (!filePath) {
     const suffix = exportMode === 'inline' ? '原位标注版' : '标注版'
     const safeTitle = safeFileStem(book.title)
-    const defaultPath = join(app.getPath('downloads'), `${safeTitle}-${suffix}.epub`)
-    const options: Electron.SaveDialogOptions = {
-      title: exportMode === 'inline' ? '导出原位标注版 EPUB' : '导出带阅读笔记的 EPUB',
-      defaultPath,
-      filters: [{ name: 'EPUB 电子书', extensions: ['epub'] }]
+    const folderOptions: Electron.OpenDialogOptions = {
+      title: '选择导出文件夹',
+      defaultPath: app.getPath('downloads'),
+      buttonLabel: '导出到此文件夹',
+      properties: ['openDirectory', 'createDirectory']
     }
-    const result = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options)
-    if (result.canceled || !result.filePath) return null
-    filePath = result.filePath
+    const folderResult = parent
+      ? await dialog.showOpenDialog(parent, folderOptions)
+      : await dialog.showOpenDialog(folderOptions)
+    if (folderResult.canceled || !folderResult.filePaths[0]) return null
+    filePath = await uniqueFilePath(folderResult.filePaths[0], `${safeTitle}-${suffix}.epub`)
   }
   if (!extname(filePath).toLowerCase()) filePath += '.epub'
 
@@ -89,8 +91,47 @@ export async function exportBookAsEpub(
     compressionOptions: { level: 6 }
   })
   await fs.mkdir(dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, output)
+  try {
+    await fs.writeFile(filePath, output)
+  } catch (error) {
+    if (!targetPath || !isPermissionError(error)) throw error
+    const fallback = join(app.getPath('userData'), 'exports', basename(filePath))
+    await fs.mkdir(dirname(fallback), { recursive: true })
+    await fs.writeFile(fallback, output)
+    const message: Electron.MessageBoxOptions = {
+      type: 'warning',
+      title: '导出位置受限',
+      message: '系统限制了所选文件夹的写入权限。',
+      detail: `文件已改存到程序可写目录：\n${fallback}\n\n你可以在这里打开后手动移动到目标文件夹。`,
+      buttons: ['打开文件夹', '关闭'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    }
+    const result = parent ? await dialog.showMessageBox(parent, message) : await dialog.showMessageBox(message)
+    if (result.response === 0) void shell.openPath(dirname(fallback))
+    return fallback
+  }
   return filePath
+}
+
+async function uniqueFilePath(dir: string, fileName: string): Promise<string> {
+  const extension = extname(fileName)
+  const stem = fileName.slice(0, -extension.length)
+  for (let index = 0; index < 100; index += 1) {
+    const candidate = join(dir, index === 0 ? fileName : `${stem}-${index + 1}${extension}`)
+    try {
+      await fs.access(candidate)
+    } catch {
+      return candidate
+    }
+  }
+  return join(dir, `${stem}-${Date.now()}${extension}`)
+}
+
+function isPermissionError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException)?.code
+  return code === 'EACCES' || code === 'EPERM' || code === 'EROFS'
 }
 
 async function askExportMode(parent: BrowserWindow | null): Promise<ExportMode | null> {

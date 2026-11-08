@@ -137,7 +137,7 @@ For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0
 4. Select text and right-click to copy, add a five-color highlight, underline or wavy underline, or a note; click an existing annotation to edit or delete it.
 5. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
 6. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
-7. Click the download button on a library card or in the reader toolbar, choose an export mode, then save a single EPUB file.
+7. Click the download button on a library card or in the reader toolbar, choose an export mode and a destination folder; the file name is generated automatically.
 
 ## ⌨️ Shortcuts
 
@@ -213,7 +213,7 @@ The interaction follows the core flow in the W3C [EPUB Annotations Use Cases and
 
 ## 📤 Two EPUB Export Modes
 
-Click the download button on a library card or in the reader toolbar, choose a mode, then choose a save location. Both modes produce a single `.epub` file:
+Click the download button on a library card or in the reader toolbar, choose a mode and a destination folder. The file name is generated from the book title; both modes produce a single `.epub` file:
 
 ### Data version (with Reading Notes)
 
@@ -230,7 +230,7 @@ Click the download button on a library card or in the reader toolbar, choose a m
 - Keeps `META-INF/ebook-viewer.json` as a complete data backup.
 - Does not add a separate notes chapter; annotations are visible while reading the original text.
 
-> Inline annotations are ordinary `<span class="ev-annotation ...">` elements and should work in most EPUB readers. The Ebook Viewer JSON remains the full data source. Full EPUB Annotations import/export is not implemented yet.
+> If Windows security software or folder permissions reject the selected directory, the export is automatically written to the app's writable `exports` folder, with a prompt and an “Open folder” button. Inline annotations are ordinary `<span class="ev-annotation ...">` elements and should work in most EPUB readers. The Ebook Viewer JSON remains the full data source. Full EPUB Annotations import/export is not implemented yet.
 
 ## 🫥 Stealth Mode
 
