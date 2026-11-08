@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { Book } from '@shared/types'
+import type { Book, ExportMode } from '@shared/types'
 import TitleBar from '../components/TitleBar.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import BookDetailDialog from '../components/BookDetailDialog.vue'
+import ExportModeDialog from '../components/ExportModeDialog.vue'
+import SettingsDialog from '../components/SettingsDialog.vue'
 import { inspectEpub, toArrayBuffer } from '../lib/epub'
 import { errorMessage, toast } from '../lib/toast'
 import { useAppStore } from '../stores/app'
@@ -26,6 +28,9 @@ const bulkDeleteOpen = ref(false)
 const exportingMany = ref(false)
 const detailBook = ref<Book | null>(null)
 const cardMenu = ref<{ book: Book; x: number; y: number } | null>(null)
+const exportModeOpen = ref(false)
+const exportTarget = ref<{ kind: 'single'; book: Book } | { kind: 'bulk' } | null>(null)
+const settingsOpen = ref(false)
 
 const selectedBooks = computed(() => store.books.filter((book) => selectedIds.value.includes(book.id)))
 
@@ -121,16 +126,40 @@ async function openBook(book: Book): Promise<void> {
   }
 }
 
-async function exportBook(book: Book): Promise<void> {
+async function exportBook(book: Book, mode: ExportMode): Promise<void> {
   if (exporting.value) return
   exporting.value = book.id
   try {
-    const path = await window.api.library.export(book.id)
+    const path = await window.api.library.export(book.id, undefined, mode)
     if (path) toast(`已导出 EPUB：${path}`, 'success')
   } catch (error) {
     toast(`导出失败：${errorMessage(error)}`, 'error')
   } finally {
     exporting.value = ''
+  }
+}
+
+function requestExport(book: Book): void {
+  cardMenu.value = null
+  exportTarget.value = { kind: 'single', book }
+  exportModeOpen.value = true
+}
+
+function requestBulkExport(): void {
+  if (!selectedIds.value.length || exportingMany.value) return
+  exportTarget.value = { kind: 'bulk' }
+  exportModeOpen.value = true
+}
+
+async function chooseExportMode(mode: ExportMode): Promise<void> {
+  const target = exportTarget.value
+  exportModeOpen.value = false
+  exportTarget.value = null
+  if (!target) return
+  if (target.kind === 'single') {
+    await exportBook(target.book, mode)
+  } else {
+    await performBulkExport(mode)
   }
 }
 
@@ -193,8 +222,7 @@ function openDetails(book: Book): void {
 }
 
 function menuExport(book: Book): void {
-  cardMenu.value = null
-  void exportBook(book)
+  requestExport(book)
 }
 
 function menuDelete(book: Book): void {
@@ -202,11 +230,11 @@ function menuDelete(book: Book): void {
   confirmDelete(book)
 }
 
-async function exportSelected(): Promise<void> {
+async function performBulkExport(mode: ExportMode): Promise<void> {
   if (!selectedIds.value.length || exportingMany.value) return
   exportingMany.value = true
   try {
-    const paths = await window.api.library.exportMany(selectedIds.value)
+    const paths = await window.api.library.exportMany(selectedIds.value, mode)
     if (paths.length) {
       toast(`已导出 ${paths.length} 本书`, 'success')
       selecting.value = false
@@ -258,7 +286,7 @@ async function doDelete(): Promise<void> {
 }
 
 async function toggleTheme(): Promise<void> {
-  await store.updateSettings({ theme: store.theme === 'dark' ? 'light' : 'dark' })
+  await store.cycleTheme()
 }
 
 function onDragEnter(event: DragEvent): void {
@@ -322,8 +350,17 @@ function relativeTime(book: Book): string {
         </label>
       </template>
       <template #actions>
-        <button class="icon-btn" type="button" :title="store.theme === 'dark' ? '切换明亮模式' : '切换暗黑模式'" @click="toggleTheme">
+        <button class="icon-btn" type="button" title="设置" @click="settingsOpen = true">
+          <AppIcon name="settings" :size="17" />
+        </button>
+        <button
+          class="icon-btn theme-toggle"
+          type="button"
+          :title="store.settings.theme === 'auto' ? '自动模式：根据日出日落切换' : store.theme === 'dark' ? '切换明亮模式' : '切换暗黑模式'"
+          @click="toggleTheme"
+        >
           <AppIcon :name="store.theme === 'dark' ? 'sun' : 'moon'" :size="17" />
+          <span v-if="store.settings.theme === 'auto'" class="auto-badge">A</span>
         </button>
         <button class="pill-button import-button" type="button" :disabled="importing" @click="pickAndImport">
           <AppIcon name="plus" :size="16" />
@@ -394,7 +431,7 @@ function relativeTime(book: Book): string {
           </button>
           <span class="bulk-count">已选 {{ selectedIds.length }} 本</span>
           <div class="bulk-actions">
-            <button class="ghost-button" type="button" :disabled="!selectedIds.length || exportingMany" @click="exportSelected">
+            <button class="ghost-button" type="button" :disabled="!selectedIds.length || exportingMany" @click="requestBulkExport">
               <AppIcon name="download" :size="14" />
               {{ exportingMany ? '导出中…' : '导出' }}
             </button>
@@ -504,6 +541,13 @@ function relativeTime(book: Book): string {
     </Transition>
 
     <BookDetailDialog :open="Boolean(detailBook)" :book="detailBook" @close="detailBook = null" />
+    <SettingsDialog :open="settingsOpen" @close="settingsOpen = false" />
+    <ExportModeDialog
+      :open="exportModeOpen"
+      :count="exportTarget?.kind === 'bulk' ? selectedIds.length : 1"
+      @select="chooseExportMode"
+      @close="exportModeOpen = false; exportTarget = null"
+    />
 
     <ConfirmDialog
       :open="Boolean(pendingDelete)"
@@ -753,14 +797,12 @@ function relativeTime(book: Book): string {
   right: 8px;
   opacity: 0;
   transform: translateY(-3px);
-  pointer-events: none;
   transition: opacity 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .book-card:hover .more-button {
   opacity: 1;
   transform: none;
-  pointer-events: auto;
 }
 
 .more-button:hover {
@@ -805,6 +847,26 @@ function relativeTime(book: Book): string {
   font-size: 11px;
 }
 
+.theme-toggle {
+  position: relative;
+}
+
+.auto-badge {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  width: 10px;
+  height: 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .select-mode-button:hover,
 .select-mode-button.active {
   border-color: var(--accent);
@@ -820,9 +882,11 @@ function relativeTime(book: Book): string {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  box-shadow: var(--shadow-sm);
   color: var(--muted);
   font-size: 11px;
+  backdrop-filter: blur(10px);
 }
 
 .bulk-select-all {

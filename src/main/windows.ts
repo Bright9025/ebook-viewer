@@ -28,7 +28,7 @@ export function isQuitting(): boolean {
 
 export function currentTheme(): 'light' | 'dark' {
   const mode = getStore().settings.theme
-  if (mode === 'system') return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+  if (mode === 'system' || mode === 'auto') return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
   return mode
 }
 

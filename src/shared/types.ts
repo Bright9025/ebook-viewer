@@ -1,6 +1,6 @@
-export type ThemeMode = 'light' | 'dark' | 'system'
+export type ThemeMode = 'light' | 'dark' | 'system' | 'auto'
 export type AppTheme = 'light' | 'dark'
-export type ReaderFont = 'serif' | 'song' | 'kai' | 'sans'
+export type ReaderFont = 'serif' | 'song' | 'kai' | 'sans' | 'fangsong' | 'hei' | 'yuan' | 'mono'
 
 export interface ReadingProgress {
   cfi: string
@@ -75,6 +75,11 @@ export interface HotkeySettings {
 
 export interface AppSettings {
   theme: ThemeMode
+  themeAccent: {
+    light: string
+    dark: string
+  }
+  annotationColors: AnnotationColor[]
   reader: ReaderSettings
   stealth: StealthSettings
   hotkeys: HotkeySettings

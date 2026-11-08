@@ -1,4 +1,4 @@
-import { app, nativeTheme, protocol } from 'electron'
+import { app, nativeTheme, protocol, session } from 'electron'
 import { promises as fs, mkdirSync } from 'node:fs'
 import { dirname, join, normalize, sep } from 'node:path'
 import { registerIpc } from './ipc'
@@ -68,9 +68,15 @@ if (!gotLock) {
 async function bootstrap(): Promise<void> {
   await app.whenReady()
 
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'geolocation')
+  })
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => permission === 'geolocation')
+
   initStore(app.getPath('userData'))
   await getStore().load()
-  nativeTheme.themeSource = getStore().settings.theme
+  const themeMode = getStore().settings.theme
+  nativeTheme.themeSource = themeMode === 'auto' ? 'system' : themeMode
 
   registerAppProtocol()
   registerIpc()

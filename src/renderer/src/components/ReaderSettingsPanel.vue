@@ -60,7 +60,8 @@ function stepFont(delta: number): void {
                   v-for="item in [
                     { value: 'light', label: '明亮' },
                     { value: 'dark', label: '暗黑' },
-                    { value: 'system', label: '跟随系统' }
+                    { value: 'system', label: '跟随系统' },
+                    { value: 'auto', label: '日出日落' }
                   ]"
                   :key="item.value"
                   :class="{ active: themeMode === item.value }"

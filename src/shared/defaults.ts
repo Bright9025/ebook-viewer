@@ -1,4 +1,4 @@
-import type { AppData, AppSettings, ReaderSettings, StealthSettings } from './types'
+import type { AnnotationColor, AppData, AppSettings, ReaderSettings, StealthSettings } from './types'
 
 export const defaultReaderSettings: ReaderSettings = {
   font: 'serif',
@@ -18,8 +18,15 @@ export const defaultStealthSettings: StealthSettings = {
   fontSize: 15
 }
 
+export const defaultAnnotationColors: AnnotationColor[] = ['yellow', 'green', 'blue', 'pink', 'black']
+
 export const defaultSettings: AppSettings = {
   theme: 'system',
+  themeAccent: {
+    light: '#9a5a2d',
+    dark: '#d49a60'
+  },
+  annotationColors: [...defaultAnnotationColors],
   reader: { ...defaultReaderSettings },
   stealth: { ...defaultStealthSettings },
   hotkeys: {
@@ -34,6 +41,8 @@ export function createDefaultData(): AppData {
     books: [],
     settings: {
       ...defaultSettings,
+      themeAccent: { ...defaultSettings.themeAccent },
+      annotationColors: [...defaultAnnotationColors],
       reader: { ...defaultReaderSettings },
       stealth: { ...defaultStealthSettings },
       hotkeys: { ...defaultSettings.hotkeys }
@@ -47,6 +56,8 @@ export function mergeSettings(base: AppSettings, patch: Partial<AppSettings>): A
   return {
     ...base,
     ...patch,
+    themeAccent: { ...base.themeAccent, ...(patch.themeAccent ?? {}) },
+    annotationColors: Array.isArray(patch.annotationColors) ? patch.annotationColors : base.annotationColors,
     reader: { ...base.reader, ...(patch.reader ?? {}) },
     stealth: { ...base.stealth, ...(patch.stealth ?? {}) },
     hotkeys: { ...base.hotkeys, ...(patch.hotkeys ?? {}) }

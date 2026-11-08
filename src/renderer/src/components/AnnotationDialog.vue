@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { AnnotationColor, AnnotationStyle } from '@shared/types'
 import { annotationColors, annotationStyles } from '../lib/annotations'
+import { useAppStore } from '../stores/app'
 import AppIcon from './AppIcon.vue'
+
+const store = useAppStore()
 
 const props = defineProps<{
   open: boolean
@@ -23,6 +26,14 @@ const draftNote = ref('')
 const draftColor = ref<AnnotationColor>('yellow')
 const draftStyle = ref<AnnotationStyle>('highlight')
 const textarea = ref<HTMLTextAreaElement | null>(null)
+const visibleColors = computed(() => {
+  const enabled = annotationColors.filter((item) => store.settings.annotationColors.includes(item.color))
+  if (!enabled.some((item) => item.color === props.color)) {
+    const current = annotationColors.find((item) => item.color === props.color)
+    if (current) enabled.push(current)
+  }
+  return enabled
+})
 
 watch(
   () => props.open,
@@ -99,7 +110,7 @@ function onKeydown(event: KeyboardEvent): void {
             <span class="field-label">颜色</span>
             <div class="color-options">
               <button
-                v-for="item in annotationColors"
+                v-for="item in visibleColors"
                 :key="item.color"
                 class="color-option"
                 :class="{ active: draftColor === item.color }"

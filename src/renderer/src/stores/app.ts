@@ -10,9 +10,11 @@ import type {
   Book,
   Bookmark,
   ProgressPayload,
-  ReadingProgress
+  ReadingProgress,
+  ThemeMode
 } from '@shared/types'
 import { appBackground } from '../lib/theme'
+import { isNight } from '../lib/solar'
 
 export const useAppStore = defineStore('app', () => {
   const books = ref<Book[]>([])
@@ -28,9 +30,16 @@ export const useAppStore = defineStore('app', () => {
     systemDark.value = event.matches
   })
 
-  const theme = computed<AppTheme>(() =>
-    settings.value.theme === 'system' ? (systemDark.value ? 'dark' : 'light') : settings.value.theme
-  )
+  const autoDark = ref(isNight(new Date(), null, null))
+  const autoCoords = ref<{ latitude: number; longitude: number } | null>(null)
+  let autoTimer: number | null = null
+  let geoRequested = false
+
+  const theme = computed<AppTheme>(() => {
+    if (settings.value.theme === 'system') return systemDark.value ? 'dark' : 'light'
+    if (settings.value.theme === 'auto') return autoDark.value ? 'dark' : 'light'
+    return settings.value.theme
+  })
 
   const lastBook = computed(() => {
     const id = settings.value.lastBookId
@@ -41,12 +50,58 @@ export const useAppStore = defineStore('app', () => {
 
   watch(theme, applyTheme, { immediate: true })
 
+  function updateAutoTheme(): void {
+    autoDark.value = isNight(new Date(), autoCoords.value?.latitude ?? null, autoCoords.value?.longitude ?? null)
+  }
+
+  function startAutoClock(): void {
+    if (autoTimer != null) return
+    autoTimer = window.setInterval(() => {
+      if (settings.value.theme === 'auto') updateAutoTheme()
+    }, 60_000)
+  }
+
+  function requestAutoLocation(): void {
+    if (geoRequested || !navigator.geolocation) return
+    geoRequested = true
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        autoCoords.value = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }
+        updateAutoTheme()
+      },
+      () => {
+        // Location can be denied; the local 06:00/18:00 fallback remains active.
+      },
+      { maximumAge: 86_400_000, timeout: 8_000 }
+    )
+  }
+
   function applyTheme(): void {
     document.documentElement.dataset.theme = theme.value
     document.documentElement.style.colorScheme = theme.value
+    const accent = settings.value.themeAccent?.[theme.value] ?? (theme.value === 'dark' ? '#d49a60' : '#9a5a2d')
+    document.documentElement.style.setProperty('--accent', accent)
+    document.documentElement.style.setProperty('--accent-soft', hexToRgba(accent, 0.14))
+    document.documentElement.style.setProperty('--accent-ink', luminance(accent) > 0.55 ? '#211a12' : '#fff8ec')
     if (!window.location.hash.startsWith('#/stealth')) {
       window.api.window.setBackground(appBackground(theme.value))
     }
+  }
+
+  function hexToRgba(hex: string, alpha: number): string {
+    const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+    if (!match) return `rgba(154, 90, 45, ${alpha})`
+    return `rgba(${parseInt(match[1], 16)}, ${parseInt(match[2], 16)}, ${parseInt(match[3], 16)}, ${alpha})`
+  }
+
+  function luminance(hex: string): number {
+    const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+    if (!match) return 0
+    const [r, g, b] = [1, 2, 3].map((index) => parseInt(match[index], 16) / 255)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
 
   async function init(): Promise<void> {
@@ -60,9 +115,17 @@ export const useAppStore = defineStore('app', () => {
         annotations.value = data.annotations
         ready.value = true
         applyTheme()
-        window.api.setNativeTheme(settings.value.theme)
+        startAutoClock()
+        if (settings.value.theme === 'auto') requestAutoLocation()
+        window.api.setNativeTheme(theme.value)
         window.api.events.onSettingsChanged((next) => {
           settings.value = next
+          if (next.theme === 'auto') {
+            requestAutoLocation()
+            startAutoClock()
+            updateAutoTheme()
+          }
+          applyTheme()
         })
         window.api.events.onRemoteProgress((progress) => {
           applyProgress(progress)
@@ -78,8 +141,23 @@ export const useAppStore = defineStore('app', () => {
   async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
     const next = await window.api.settings.set(patch)
     settings.value = next
-    window.api.setNativeTheme(next.theme)
+    if (next.theme === 'auto') {
+      requestAutoLocation()
+      startAutoClock()
+      updateAutoTheme()
+    }
     applyTheme()
+    window.api.setNativeTheme(theme.value)
+  }
+
+  async function cycleTheme(): Promise<void> {
+    const current = settings.value.theme
+    let next: ThemeMode
+    if (current === 'auto') next = 'light'
+    else if (current === 'dark') next = 'auto'
+    else if (current === 'light') next = 'dark'
+    else next = theme.value === 'dark' ? 'auto' : 'dark'
+    await updateSettings({ theme: next })
   }
 
   function applyProgress(progress: ProgressPayload): void {
@@ -189,6 +267,7 @@ export const useAppStore = defineStore('app', () => {
     lastBook,
     init,
     updateSettings,
+    cycleTheme,
     applyProgress,
     setLocalProgress,
     addBookLocal,

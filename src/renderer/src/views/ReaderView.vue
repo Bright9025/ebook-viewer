@@ -2,10 +2,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Book as EpubBook, NavItem, Rendition } from 'epubjs'
-import type { Annotation, AnnotationColor, AnnotationStyle, Bookmark, ReaderSettings, ThemeMode } from '@shared/types'
+import type { Annotation, AnnotationColor, AnnotationStyle, Bookmark, ExportMode, ReaderSettings, ThemeMode } from '@shared/types'
 import { defaultReaderSettings } from '@shared/defaults'
 import AnnotationDialog from '../components/AnnotationDialog.vue'
 import AppIcon from '../components/AppIcon.vue'
+import ExportModeDialog from '../components/ExportModeDialog.vue'
 import ReaderPanel from '../components/ReaderPanel.vue'
 import ReaderSettingsPanel from '../components/ReaderSettingsPanel.vue'
 import SelectionMenu from '../components/SelectionMenu.vue'
@@ -42,6 +43,7 @@ const chromeVisible = ref(true)
 const isFullscreen = ref(false)
 const maximized = ref(false)
 const exporting = ref(false)
+const exportModeOpen = ref(false)
 const locationsReady = ref(false)
 const draftReader = reactive<ReaderSettings>({ ...store.settings.reader })
 
@@ -406,7 +408,7 @@ async function setTheme(mode: ThemeMode): Promise<void> {
 }
 
 async function toggleTheme(): Promise<void> {
-  await setTheme(store.theme === 'dark' ? 'light' : 'dark')
+  await store.cycleTheme()
 }
 
 async function nextPage(): Promise<void> {
@@ -461,13 +463,18 @@ async function goCfi(cfi: string): Promise<void> {
   }
 }
 
-async function exportCurrentBook(): Promise<void> {
+function requestExport(): void {
+  if (!exporting.value) exportModeOpen.value = true
+}
+
+async function exportCurrentBook(mode: ExportMode): Promise<void> {
   if (exporting.value) return
+  exportModeOpen.value = false
   exporting.value = true
   try {
     await saveProgress()
-    const path = await window.api.library.export(bookId)
-    if (path) toast(`已导出带标注的 EPUB：${path}`, 'success')
+    const path = await window.api.library.export(bookId, undefined, mode)
+    if (path) toast(`已导出 EPUB：${path}`, 'success')
   } catch (error) {
     toast(`导出失败：${errorMessage(error)}`, 'error')
   } finally {
@@ -1081,9 +1088,9 @@ function wait(ms: number): Promise<void> {
         <button
           class="chrome-button reader-optional"
           type="button"
-          :title="exporting ? '正在导出…' : '导出含标注的 EPUB'"
+          :title="exporting ? '正在导出…' : '导出 EPUB'"
           :disabled="exporting"
-          @click="exportCurrentBook"
+          @click="requestExport"
         >
           <AppIcon name="download" :size="17" />
         </button>
@@ -1091,8 +1098,9 @@ function wait(ms: number): Promise<void> {
         <button class="chrome-button" type="button" title="排版" @click="settingsOpen = true; keepChrome()">
           <AppIcon name="type" :size="18" />
         </button>
-        <button class="chrome-button reader-optional" type="button" :title="store.theme === 'dark' ? '明亮模式' : '暗黑模式'" @click="toggleTheme">
+        <button class="chrome-button reader-optional theme-toggle" type="button" :title="store.settings.theme === 'auto' ? '自动模式：根据日出日落切换' : store.theme === 'dark' ? '明亮模式' : '暗黑模式'" @click="toggleTheme">
           <AppIcon :name="store.theme === 'dark' ? 'sun' : 'moon'" :size="17" />
+          <span v-if="store.settings.theme === 'auto'" class="auto-badge">A</span>
         </button>
         <button class="chrome-button stealth-button" :class="{ active: store.stealthVisible }" type="button" title="摸鱼模式" @click="toggleStealth">
           <AppIcon name="ghost" :size="18" />
@@ -1160,8 +1168,7 @@ function wait(ms: number): Promise<void> {
     />
 
     <SelectionMenu
-      :open="selectionMenu.open"
-      :x="selectionMenu.x"
+      :open="selectionMenu.open"      :x="selectionMenu.x"
       :y="selectionMenu.y"
       @copy="copySelection"
       @annotate="annotateSelection"
@@ -1179,6 +1186,12 @@ function wait(ms: number): Promise<void> {
       @save="saveAnnotation"
       @remove="annotationEditing && removeAnnotation(annotationEditing.id)"
       @close="annotationDialogOpen = false; annotationEditing = null"
+    />
+
+    <ExportModeDialog
+      :open="exportModeOpen"
+      @select="exportCurrentBook"
+      @close="exportModeOpen = false"
     />
 
     <ReaderSettingsPanel
@@ -1264,6 +1277,22 @@ function wait(ms: number): Promise<void> {
 .chrome-button.active {
   opacity: 1;
   color: var(--accent);
+}
+
+.chrome-button .auto-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 10px;
+  height: 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .chrome-button.window-close:hover {

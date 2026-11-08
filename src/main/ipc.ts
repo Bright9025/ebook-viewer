@@ -73,7 +73,7 @@ export function registerIpc(): void {
   ipcMain.handle('settings:set', async (_event, patch: Partial<AppSettings>) => {
     const store = getStore()
     const settings = await store.updateSettings(patch ?? {})
-    nativeTheme.themeSource = settings.theme
+    nativeTheme.themeSource = settings.theme === 'auto' ? 'system' : settings.theme
     applyThemeBackground()
     broadcast('events:settings-changed', settings)
     if (patch?.hotkeys) registerHotkeys()
