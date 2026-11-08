@@ -568,6 +568,15 @@ function relativeTime(book: Book): string {
   transform: none;
 }
 
+.book-card .export-button {
+  opacity: 0.86;
+  transform: none;
+}
+
+.book-card:hover .export-button {
+  opacity: 1;
+}
+
 .delete-button:hover {
   background: var(--danger);
 }

@@ -90,14 +90,12 @@ export async function exportBookAsEpub(
     compression: 'DEFLATE',
     compressionOptions: { level: 6 }
   })
-  await fs.mkdir(dirname(filePath), { recursive: true })
   try {
-    await fs.writeFile(filePath, output)
+    await writeFile(filePath, output)
   } catch (error) {
-    if (!targetPath || !isPermissionError(error)) throw error
+    if (!isPermissionError(error)) throw error
     const fallback = join(app.getPath('userData'), 'exports', basename(filePath))
-    await fs.mkdir(dirname(fallback), { recursive: true })
-    await fs.writeFile(fallback, output)
+    await writeFile(fallback, output)
     const message: Electron.MessageBoxOptions = {
       type: 'warning',
       title: '导出位置受限',
@@ -108,11 +106,20 @@ export async function exportBookAsEpub(
       cancelId: 1,
       noLink: true
     }
-    const result = parent ? await dialog.showMessageBox(parent, message) : await dialog.showMessageBox(message)
-    if (result.response === 0) void shell.openPath(dirname(fallback))
+    try {
+      const result = parent ? await dialog.showMessageBox(parent, message) : await dialog.showMessageBox(message)
+      if (result.response === 0) void shell.openPath(dirname(fallback))
+    } catch {
+      /* the fallback export already succeeded */
+    }
     return fallback
   }
   return filePath
+}
+
+async function writeFile(filePath: string, data: Buffer): Promise<void> {
+  await fs.mkdir(dirname(filePath), { recursive: true })
+  await fs.writeFile(filePath, data)
 }
 
 async function uniqueFilePath(dir: string, fileName: string): Promise<string> {
