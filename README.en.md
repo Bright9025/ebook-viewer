@@ -6,16 +6,16 @@
 
 A focused local EPUB reader with a library, table of contents, bookmarks, light/dark themes, and a transparent always-on-top “stealth” reading window that adapts to the desktop behind it.
 
-> Current version: **v1.0.4** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> Current version: **v1.0.5** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 What's New in v1.0.4
+## 🆕 What's New in v1.0.5
 
 - **No silent updates**: the first launch only checks and records an available version. The next launch asks whether to download it; after download, the app asks again before restarting. Quitting never installs automatically.
-- **Updates keep the original install directory**: the updater uses the install location stored in the registry, so program and library directories are not moved.
+- **Updates keep the original install directory**: the updater uses the current program directory, so program and library directories are not moved.
 - The prompt names the source (GitHub Releases) and checksum verification; library data, books and progress are untouched.
-- v1.0.3 data migration and updater foundations remain.
+- v1.0.4 prompt-based updating and v1.0.3 data migration remain.
 
 ### v1.0.3 highlights
 
@@ -150,14 +150,14 @@ release/
 │   ├── EbookViewerCore.exe       # Electron app
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Chromium profile (library data is not stored here)
-├── Ebook-Viewer-1.0.4-x64.exe    # NSIS installer
-├── Ebook-Viewer-1.0.4-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.4-x64-portable.zip
+├── Ebook-Viewer-1.0.5-x64.exe    # NSIS installer
+├── Ebook-Viewer-1.0.5-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.5-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder debug info (ignored)
 ```
 
-For a GitHub Release, upload `Ebook-Viewer-1.0.4-x64.exe` and `Ebook-Viewer-v1.0.4-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
+For a GitHub Release, upload `Ebook-Viewer-1.0.5-x64.exe` and `Ebook-Viewer-v1.0.5-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
@@ -197,7 +197,7 @@ Contents:
 - `fonts/` – imported local reading fonts
 - `exports/` – fallback destination when a selected export folder is blocked
 
-When upgrading from v1.0.2 to v1.0.3 / v1.0.4, the installer copies the old install folder's `data/` into `%LOCALAPPDATA%\Ebook Viewer\` before removing it; a first-launch migration also handles older portable copies.
+When upgrading from v1.0.2 to v1.0.3 / v1.0.4 / v1.0.5, the installer copies the old install folder's `data/` into `%LOCALAPPDATA%\Ebook Viewer\` before removing it; a first-launch migration also handles older portable copies.
 
 Override the location with the `EBOOK_USER_DATA` environment variable.
 

@@ -6,16 +6,16 @@
 
 一个专注阅读本身的本地 EPUB 阅读器：书库、目录、书签、明亮 / 暗黑主题，以及一个可以随时呼出、随桌面颜色隐身的「摸鱼模式」。
 
-> 当前版本：**v1.0.4** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> 当前版本：**v1.0.5** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 v1.0.4 更新
+## 🆕 v1.0.5 更新
 
 - **更新不再静默**：首次打开只检查版本并记录，第二次打开才提示是否下载；下载完成后再次询问是否重启安装，退出应用不会自动安装。
-- **更新保持原安装目录**：自动更新沿用注册表中的原安装位置，不移动程序目录，也不修改用户书库目录。
+- **更新保持原安装目录**：自动更新使用当前程序所在目录，不移动程序目录，也不修改用户书库目录。
 - 更新提示会说明来源（GitHub Releases）和完整性校验，书库、书籍和进度不会被改动。
-- v1.0.3 的数据迁移和自动更新基础仍然保留。
+- v1.0.4 的提示式更新与 v1.0.3 的数据迁移保持不变。
 
 ### v1.0.3 主要更新
 
@@ -150,14 +150,14 @@ release/
 │   ├── EbookViewerCore.exe       # Electron 主体
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Chromium 配置（书库数据不在这里）
-├── Ebook-Viewer-1.0.4-x64.exe    # NSIS 安装包
-├── Ebook-Viewer-1.0.4-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.4-x64-portable.zip
+├── Ebook-Viewer-1.0.5-x64.exe    # NSIS 安装包
+├── Ebook-Viewer-1.0.5-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.5-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder 调试信息（可忽略）
 ```
 
-发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.4-x64.exe` 和 `Ebook-Viewer-v1.0.4-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
+发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.5-x64.exe` 和 `Ebook-Viewer-v1.0.5-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
 
 ## 📚 使用
 
@@ -197,7 +197,7 @@ release/
 - `fonts/`：导入的本地阅读字体
 - `exports/`：导出目录被系统权限拦截时的回退位置
 
-从 v1.0.2 升级到 v1.0.3 / v1.0.4 时，安装器会先把旧安装目录 `data/` 中的书库复制到 `%LOCALAPPDATA%\Ebook Viewer\`，应用首次启动时也会再做一次兜底迁移。
+从 v1.0.2 升级到 v1.0.3 / v1.0.4 / v1.0.5 时，安装器会先把旧安装目录 `data/` 中的书库复制到 `%LOCALAPPDATA%\Ebook Viewer\`，应用首次启动时也会再做一次兜底迁移。
 
 可用环境变量 `EBOOK_USER_DATA` 覆盖数据目录。
 
