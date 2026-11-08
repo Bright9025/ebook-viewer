@@ -44,7 +44,7 @@ export async function exportBookAsEpub(
   let filePath = targetPath?.trim() ?? ''
   if (!filePath) {
     const suffix = exportMode === 'inline' ? '原位标注版' : '标注版'
-    const safeTitle = book.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 90) || '未命名'
+    const safeTitle = safeFileStem(book.title)
     const defaultPath = join(app.getPath('downloads'), `${safeTitle}-${suffix}.epub`)
     const options: Electron.SaveDialogOptions = {
       title: exportMode === 'inline' ? '导出原位标注版 EPUB' : '导出带阅读笔记的 EPUB',
@@ -455,6 +455,16 @@ function styleLabel(style: Annotation['style']): string {
   if (style === 'wavy') return '下波浪线'
   if (style === 'none') return '仅笔记'
   return '高亮'
+}
+
+function safeFileStem(title: string): string {
+  return (
+    title
+      .replace(/[\\/:*?"<>|：／＼？＊＜＞｜＂]/g, '_')
+      .replace(/[\u0000-\u001f]/g, '')
+      .replace(/[. ]+$/g, '')
+      .slice(0, 90) || '未命名'
+  )
 }
 
 function escapeXml(value: string): string {
