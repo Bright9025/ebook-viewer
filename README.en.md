@@ -6,17 +6,23 @@
 
 A focused local EPUB reader with a library, table of contents, bookmarks, light/dark themes, and a transparent always-on-top “stealth” reading window that adapts to the desktop behind it.
 
-> Current version: **v1.0.2** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> Current version: **v1.0.3** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 What's New in v1.0.2
+## 🆕 What's New in v1.0.3
 
-- **Custom annotation palette**: rename colors, change their values, add and remove colors.
-- **Data and pure EPUB exports**: the data edition restores annotations, bookmarks and progress when imported back.
-- **Library actions**: hover “···” or right-click for details, export and delete.
-- **Bulk selection**: export or delete multiple books; duplicate imports get `-1`, `-2` suffixes.
-- **Settings center**: sunrise/sunset auto theme, four built-in fonts, local font import/removal and reset-to-default.
+- **Fixes library/progress loss during updates**: books and settings now live in a separate per-user data directory that installers do not delete; both the installer and first launch migrate data from the old `data/` folder.
+- **Automatic updates**: check GitHub Releases on startup, download in the background and install on quit. Settings also provides a manual check and an immediate restart-and-install action.
+- GitHub publish and update metadata added to the packaging configuration.
+
+### v1.0.2 highlights
+
+- Custom annotation palette with rename, color change, add and remove.
+- Data and pure EPUB exports; the data edition restores annotations, bookmarks and progress when imported back.
+- Library actions via hover “···” or right-click.
+- Bulk export/delete and duplicate-title suffixes.
+- Settings center with sunrise/sunset auto theme, four built-in fonts, local font import/removal and reset-to-default.
 - Fixes for oversized highlights, over-broad annotation hit areas and dark-mode black underlines.
 
 ## ✨ Features
@@ -136,15 +142,15 @@ release/
 │   ├── Ebook Viewer.exe          # Double-click launcher
 │   ├── EbookViewerCore.exe       # Electron app
 │   ├── 启动 Ebook Viewer.cmd
-│   └── data/                     # Created on first run
-├── Ebook-Viewer-1.0.2-x64.exe    # NSIS installer
-├── Ebook-Viewer-1.0.2-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.2-x64-portable.zip
+│   └── data/                     # Chromium profile (library data is not stored here)
+├── Ebook-Viewer-1.0.3-x64.exe    # NSIS installer
+├── Ebook-Viewer-1.0.3-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.3-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder debug info (ignored)
 ```
 
-For a GitHub Release, upload `Ebook-Viewer-1.0.2-x64.exe` and `Ebook-Viewer-v1.0.2-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
+For a GitHub Release, upload `Ebook-Viewer-1.0.3-x64.exe` and `Ebook-Viewer-v1.0.3-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
@@ -174,7 +180,8 @@ If a hotkey is occupied by another application, the settings panel reports it. H
 The app stores data next to the executable in a portable `data/` directory:
 
 - Development: `ebook-viewer/.data/`
-- Packaged: `release/win-unpacked/data/`
+- Installed app: `%LOCALAPPDATA%\Ebook Viewer\`
+- Chromium profile: still next to the executable in `data/` (safe to lose on update)
 
 Contents:
 
@@ -183,9 +190,11 @@ Contents:
 - `fonts/` – imported local reading fonts
 - `exports/` – fallback destination when a selected export folder is blocked
 
-Override the location with the `EBOOK_USER_DATA` environment variable. If the program directory is not writable (for example under `Program Files`), the app falls back to `%APPDATA%\ebook-viewer\`.
+When upgrading from v1.0.2 to v1.0.3, the installer copies the old install folder's `data/` into `%LOCALAPPDATA%\Ebook Viewer\` before removing it; a first-launch migration also handles older portable copies.
 
-> The default deliberately avoids `%APPDATA%`: in some Windows sessions or under security software, Chromium crashes while initializing the default user-data directory (`0xC0000005`). A writable local directory keeps startup reliable.
+Override the location with the `EBOOK_USER_DATA` environment variable.
+
+> Chromium initialization deliberately avoids `%APPDATA%` (`0xC0000005` crashes in some Windows sessions/security products). Library data uses a separate writable per-user folder so updates can preserve it.
 
 ## 🧠 Technical Notes
 
@@ -196,6 +205,7 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 - **EPUB export/import** – JSZip writes and reads `META-INF/ebook-viewer.json` on the original EPUB, while `@xmldom/xmldom` cleans inline annotations; both export modes produce a single file.
 - **Custom fonts** – Imported fonts are copied into local `fonts/` and served through the `app-font://` protocol without network access.
 - **Desktop color sampling** – The main process captures the desktop rectangle under the stealth window. The renderer draws a separate per-character text layer and samples the background in the vertical gaps above and below each line, then computes an ink color for every character.
+- **Automatic updates** – Installed builds use `electron-updater` to check GitHub Releases, download in the background and install on quit; update metadata is generated from the electron-builder GitHub publish config.
 - **Local storage** – The main process owns `data.json` and `books/`; nothing leaves the machine.
 
 ## 🧱 Tech Stack
@@ -263,6 +273,14 @@ Open settings from the gear on the library page:
 - **Reading fonts**: 4 built-ins (Source Han Serif, Songti, Kaiti, Heiti) plus local `.ttf` / `.otf` / `.woff` / `.woff2` imports; imported fonts can be removed.
 - **Annotation colors**: edit each color and label, add or remove colors; the selection menu and note dialog only show the current palette, with at least one color.
 - **Reset defaults**: restores theme, fonts, annotation colors and other preferences without deleting books, annotations or bookmarks.
+
+## 🔄 Automatic Updates
+
+- Installed builds check GitHub Releases shortly after startup.
+- New versions download in the background without interrupting reading.
+- Downloaded updates install when the app quits.
+- Settings → **Application Updates** offers a manual check and a “restart and install” action.
+- Portable builds should download the new archive from GitHub Releases manually.
 
 ## 🫥 Stealth Mode
 

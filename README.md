@@ -6,17 +6,23 @@
 
 一个专注阅读本身的本地 EPUB 阅读器：书库、目录、书签、明亮 / 暗黑主题，以及一个可以随时呼出、随桌面颜色隐身的「摸鱼模式」。
 
-> 当前版本：**v1.0.2** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> 当前版本：**v1.0.3** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
-## 🆕 v1.0.2 更新
+## 🆕 v1.0.3 更新
 
-- 新增**自定义标注调色板**：可改色、改名、增加或删除颜色；
-- 新增**数据版 / 纯净版**两种 EPUB 导出；数据版重新导入可恢复批注、书签和进度；
+- **修复安装更新后书库、阅读进度被覆盖**：书籍与设置迁移到独立的用户数据目录，安装升级不再删除；安装器和首次启动都会尝试从旧 `data/` 迁移。
+- **新增自动更新**：启动后自动检查 GitHub Releases，发现新版本后后台下载，退出应用时自动安装；设置中也可以手动检查并立即重启安装。
+- 打包配置加入 GitHub publish 和自动更新元数据。
+
+### v1.0.2 主要更新
+
+- 自定义标注调色板：可改色、改名、增加或删除颜色；
+- 数据版 / 纯净版两种 EPUB 导出；数据版重新导入可恢复批注、书签和进度；
 - 书库改为「···」/ 右键菜单，支持详情、导出、删除；
-- 新增首页**多选批量导出 / 删除**，同名导入自动追加 `-1`、`-2`；
-- 新增**设置中心**：日出日落自动主题、4 种内置字体、本地字体导入 / 删除、恢复默认设置；
+- 首页多选批量导出 / 删除，同名导入自动追加 `-1`、`-2`；
+- 设置中心：日出日落自动主题、4 种内置字体、本地字体导入 / 删除、恢复默认设置；
 - 修复高亮范围过大、下划线点击命中范围过宽、黑暗模式黑色下划线过暗等问题。
 
 ## ✨ 功能特点
@@ -136,15 +142,15 @@ release/
 │   ├── Ebook Viewer.exe          # 双击入口（启动器）
 │   ├── EbookViewerCore.exe       # Electron 主体
 │   ├── 启动 Ebook Viewer.cmd
-│   └── data/                     # 首次启动后生成，便携数据
-├── Ebook-Viewer-1.0.2-x64.exe    # NSIS 安装包
-├── Ebook-Viewer-1.0.2-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.2-x64-portable.zip
+│   └── data/                     # Chromium 配置（书库数据不在这里）
+├── Ebook-Viewer-1.0.3-x64.exe    # NSIS 安装包
+├── Ebook-Viewer-1.0.3-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.3-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder 调试信息（可忽略）
 ```
 
-发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.2-x64.exe` 和 `Ebook-Viewer-v1.0.2-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
+发布到 GitHub Release 时，上传 `Ebook-Viewer-1.0.3-x64.exe` 和 `Ebook-Viewer-v1.0.3-x64-portable.zip` 即可；`blockmap`、`latest.yml` 是安装器/自动更新辅助文件，可按需上传。
 
 ## 📚 使用
 
@@ -171,10 +177,11 @@ release/
 
 ## 🗂️ 数据位置
 
-默认使用程序旁边的 `data/`，便携且不写用户配置：
+书库数据与 Chromium 临时配置分开放置，安装更新不会再覆盖书籍和进度：
 
 - 开发时：`ebook-viewer/.data/`
-- 打包后：`release/win-unpacked/data/`
+- 安装版：`%LOCALAPPDATA%\Ebook Viewer\`
+- Chromium 配置：仍放在程序旁边的 `data/`，更新时丢失也没有关系
 
 其中：
 
@@ -183,9 +190,11 @@ release/
 - `fonts/`：导入的本地阅读字体
 - `exports/`：导出目录被系统权限拦截时的回退位置
 
-可用环境变量 `EBOOK_USER_DATA` 覆盖。若程序目录不可写（例如安装到 `Program Files`），会自动退回 `%APPDATA%\ebook-viewer\`。
+从 v1.0.2 升级到 v1.0.3 时，安装器会先把旧安装目录 `data/` 中的书库复制到 `%LOCALAPPDATA%\Ebook Viewer\`，应用首次启动时也会再做一次兜底迁移。
 
-> 默认不使用 `%APPDATA%` 的原因：部分 Windows 会话或安全软件环境下，Chromium 初始化用户配置目录时会直接崩溃（`0xC0000005`）；改用可写的本地目录后启动稳定。
+可用环境变量 `EBOOK_USER_DATA` 覆盖数据目录。
+
+> Chromium 配置仍不使用 `%APPDATA%`：部分 Windows 会话或安全软件环境下会崩溃（`0xC0000005`）；书籍数据使用独立的可写目录，兼顾稳定性和升级安全。
 
 ## 🧠 技术实现
 
@@ -196,6 +205,7 @@ release/
 - **EPUB 导出与导入**：使用 JSZip 在原 EPUB 上写入/读取 `META-INF/ebook-viewer.json`，并用 `@xmldom/xmldom` 清理原位标注；两种导出都只生成一个文件。
 - **自定义字体**：导入的字体复制到本地 `fonts/`，通过 `app-font://` 协议加载，不依赖网络。
 - **桌面取色**：主进程按摸鱼窗矩形截取桌面，渲染进程在独立文本层中逐字渲染，并在每个字所在行的上下留白处采样局部背景，逐字计算颜色。
+- **自动更新**：安装版通过 `electron-updater` 检查 GitHub Releases，后台下载并在退出时安装；更新器元数据由 electron-builder 的 GitHub publish 配置生成。
 - **本地存储**：主进程维护 `data.json` 与 `books/`，所有数据留在本机。
 
 ## 🧱 技术栈
@@ -263,6 +273,14 @@ release/
 - **阅读字体**：4 种内置字体（思源宋体、宋体、楷体、黑体），也可以从本地导入 `.ttf` / `.otf` / `.woff` / `.woff2` 字体，并删除已导入字体；
 - **标注颜色**：可以逐项修改颜色和名称、增加颜色或删除颜色；右键菜单和笔记弹窗只显示当前颜色，至少保留一种；
 - **恢复默认设置**：恢复主题、字体、标注颜色等偏好，不会删除书籍、批注和书签。
+
+## 🔄 自动更新
+
+- 安装版启动后会自动检查 GitHub Releases；
+- 发现新版本后后台下载，不打断阅读；
+- 退出应用时自动安装更新；
+- 设置 →「应用更新」可以手动检查，已下载时可选择「重启并安装」；
+- 便携版请从 GitHub Releases 手动下载新压缩包。
 
 ## 🫥 摸鱼模式
 
