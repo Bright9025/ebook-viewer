@@ -91,7 +91,7 @@ async function bootstrap(): Promise<void> {
   registerAppProtocol()
   registerIpc()
   createMainWindow()
-  setupAutoUpdater()
+  setupAutoUpdater(storeDataDir)
   createTray()
   const hotkeys = registerHotkeys()
   setTimeout(() => {

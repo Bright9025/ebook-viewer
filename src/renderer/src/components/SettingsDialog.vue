@@ -141,6 +141,15 @@ async function checkUpdates(): Promise<void> {
   }
 }
 
+async function downloadUpdates(): Promise<void> {
+  updateStatus.value = { state: 'downloading', percent: 0 }
+  try {
+    updateStatus.value = await window.api.updates.download()
+  } catch (error) {
+    updateStatus.value = { state: 'error', message: String(error) }
+  }
+}
+
 function installUpdate(): void {
   window.api.updates.install()
 }
@@ -252,6 +261,9 @@ function installUpdate(): void {
             <div class="update-actions">
               <button class="ghost-button" type="button" :disabled="updateStatus.state === 'checking'" @click="checkUpdates">
                 检查更新
+              </button>
+              <button v-if="updateStatus.state === 'available'" class="primary-button" type="button" @click="downloadUpdates">
+                下载更新
               </button>
               <button v-if="updateStatus.state === 'downloaded'" class="primary-button" type="button" @click="installUpdate">
                 重启并安装

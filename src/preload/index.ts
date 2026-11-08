@@ -50,6 +50,7 @@ const api: Api = {
   },
   updates: {
     check: () => ipcRenderer.invoke('updates:check') as Promise<UpdateStatus>,
+    download: () => ipcRenderer.invoke('updates:download') as Promise<UpdateStatus>,
     install: () => ipcRenderer.send('updates:install')
   },
   progress: {

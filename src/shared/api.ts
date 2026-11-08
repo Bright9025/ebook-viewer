@@ -43,6 +43,7 @@ export interface SettingsApi {
 
 export interface UpdatesApi {
   check(): Promise<UpdateStatus>
+  download(): Promise<UpdateStatus>
   install(): void
 }
 
