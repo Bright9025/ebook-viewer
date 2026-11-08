@@ -6,21 +6,30 @@
 
 A focused local EPUB reader with a library, table of contents, bookmarks, light/dark themes, and a transparent always-on-top “stealth” reading window that adapts to the desktop behind it.
 
-> Current version: **v1.0.1** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
+> Current version: **v1.0.2** · [GitHub Releases](https://github.com/Bright9025/ebook-viewer/releases)
 
 </div>
 
+## 🆕 What's New in v1.0.2
+
+- **Custom annotation palette**: rename colors, change their values, add and remove colors.
+- **Data and pure EPUB exports**: the data edition restores annotations, bookmarks and progress when imported back.
+- **Library actions**: hover “···” or right-click for details, export and delete.
+- **Bulk selection**: export or delete multiple books; duplicate imports get `-1`, `-2` suffixes.
+- **Settings center**: sunrise/sunset auto theme, four built-in fonts, local font import/removal and reset-to-default.
+- Fixes for oversized highlights, over-broad annotation hit areas and dark-mode black underlines.
+
 ## ✨ Features
 
-- 📚 **Local library** – Import EPUB files by button or drag-and-drop; extract covers, titles and authors; remember recently read books and progress.
+- 📚 **Local library** – Import EPUB files by button or drag-and-drop; extract covers, titles, authors and descriptions; remember recently read books and progress.
 - 📖 **Focused reader** – Horizontal pagination, table of contents, bookmarks, font size / line height / margins / font family / justification.
-- ✍️ **Text annotations** – Select text, then right-click to copy, add a five-color highlight, underline, wavy underline or note. Annotations are saved per book and can be jumped to, edited or deleted from the sidebar.
+- ✍️ **Text annotations** – Select text, then right-click to copy, add a highlight, underline, wavy underline or note in the current palette color. Annotations are saved per book and can be jumped to, edited or deleted from the sidebar.
 - 📤 **Two export modes** – The data version includes Reading Notes, annotations, bookmarks and progress; the pure version copies the original EPUB with no annotations.
 - 🧭 **Library actions** – Hover a book to reveal “···”, or right-click it, for details, export and delete.
 - ☑️ **Bulk actions** – Enter selection mode on the library page to export or delete multiple books.
 - 🎨 **Appearance** – Light / dark / system / sunrise-sunset auto; configurable reading fonts and annotation colors, font import and reset-to-default.
 - 🏷️ **Duplicate imports** – Importing books with the same title shows `Title-1`, `Title-2`, etc.
-- 🌗 **Light & dark** – Switch the UI and book typography together, or follow the system theme; restore the previous theme on launch without a white flash.
+- 🌗 **Reading theme** – Switch the UI and book typography together, follow the system, or use local sunrise/sunset times.
 - 🪟 **Resizable window** – Re-paginate when the window, font size or margins change, keeping the previous anchor sentence on the current page without reloading the book.
 - 🫥 **Stealth mode** – A small transparent, topmost window whose text color follows the pixels underneath, character by character. Drag it, resize it, hide it or exit it at any time.
 - ⌨️ **Global shortcuts** – Show/hide everything or toggle stealth mode from anywhere; arrow keys turn pages in the stealth window.
@@ -28,13 +37,17 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 
 ## 🖼️ Screenshots
 
-| Library | Reader · light |
+| Library | Settings |
 | --- | --- |
-| ![Library](./docs/screenshots/library.png) | ![Reader · light](./docs/screenshots/reader-light.png) |
+| ![Library](./docs/screenshots/library.png) | ![Settings](./docs/screenshots/app-settings.png) |
 
-| Reader · dark | Typography settings |
+| Reader · light | Reader · dark |
 | --- | --- |
-| ![Reader · dark](./docs/screenshots/reader-dark.png) | ![Typography settings](./docs/screenshots/reader-settings.png) |
+| ![Reader · light](./docs/screenshots/reader-light.png) | ![Reader · dark](./docs/screenshots/reader-dark.png) |
+
+| Typography settings | Export mode |
+| --- | --- |
+| ![Typography settings](./docs/screenshots/reader-settings.png) | ![Export mode](./docs/screenshots/export-dialog.png) |
 
 ![Stealth mode](./docs/screenshots/stealth-preview.png)
 
@@ -124,21 +137,21 @@ release/
 │   ├── EbookViewerCore.exe       # Electron app
 │   ├── 启动 Ebook Viewer.cmd
 │   └── data/                     # Created on first run
-├── Ebook-Viewer-1.0.1-x64.exe    # NSIS installer
-├── Ebook-Viewer-1.0.1-x64.exe.blockmap
-├── Ebook-Viewer-v1.0.1-x64-portable.zip
+├── Ebook-Viewer-1.0.2-x64.exe    # NSIS installer
+├── Ebook-Viewer-1.0.2-x64.exe.blockmap
+├── Ebook-Viewer-v1.0.2-x64-portable.zip
 ├── latest.yml
 └── builder-debug.yml             # electron-builder debug info (ignored)
 ```
 
-For a GitHub Release, upload `Ebook-Viewer-1.0.1-x64.exe` and `Ebook-Viewer-v1.0.1-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
+For a GitHub Release, upload `Ebook-Viewer-1.0.2-x64.exe` and `Ebook-Viewer-v1.0.2-x64-portable.zip`; the blockmap and `latest.yml` are installer/auto-update helpers and optional.
 
 ## 📚 Usage
 
 1. Launch the app, then click **Import EPUB** or drag an EPUB into the library.
 2. Click a cover to start reading. Locations are generated on first open and progress is saved automatically.
 3. The top bar opens the table of contents, annotation list, bookmarks, adjusts typography, switches themes, enters fullscreen, and provides minimize / maximize / close controls.
-4. Select text and right-click to copy, add a five-color highlight, underline or wavy underline, or a note; click an existing annotation to edit or delete it.
+4. Select text and right-click to copy, add a highlight, underline or wavy underline in the current palette color, or a note; click an existing annotation to edit or delete it.
 5. Click the **Stealth** button in the reader toolbar, or press `Ctrl+Shift+M`, to open the transparent topmost window.
 6. In the stealth window, use `←` / `→` to turn pages; drag the top 26px to move it; drag the bottom-right grip to resize; use the top-right toolbar to hide or exit.
 7. Click export in a book's “···” menu or in the reader toolbar, choose an export mode and a destination folder; the file name is generated automatically.
@@ -167,6 +180,8 @@ Contents:
 
 - `data.json` – library, settings, bookmarks and reading progress
 - `books/` – imported EPUB copies
+- `fonts/` – imported local reading fonts
+- `exports/` – fallback destination when a selected export folder is blocked
 
 Override the location with the `EBOOK_USER_DATA` environment variable. If the program directory is not writable (for example under `Program Files`), the app falls back to `%APPDATA%\ebook-viewer\`.
 
@@ -178,6 +193,8 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 - **Vue 3 + TypeScript + Pinia + Vue Router** – Three routed views: library, reader and stealth window. No third-party UI kit; the interface uses custom design tokens.
 - **epub.js** – Handles EPUB parsing, navigation, CFIs, horizontal pagination and book rendering. The reader keeps the existing `rendition` and only re-paginates on resize instead of reloading the whole book.
 - **Custom `app://` protocol** – Production builds load pages from inside the asar; the CSP allows the `blob:` styles and frames required by epub.js.
+- **EPUB export/import** – JSZip writes and reads `META-INF/ebook-viewer.json` on the original EPUB, while `@xmldom/xmldom` cleans inline annotations; both export modes produce a single file.
+- **Custom fonts** – Imported fonts are copied into local `fonts/` and served through the `app-font://` protocol without network access.
 - **Desktop color sampling** – The main process captures the desktop rectangle under the stealth window. The renderer draws a separate per-character text layer and samples the background in the vertical gaps above and below each line, then computes an ink color for every character.
 - **Local storage** – The main process owns `data.json` and `books/`; nothing leaves the machine.
 
@@ -210,8 +227,9 @@ Override the location with the `EBOOK_USER_DATA` environment variable. If the pr
 The interaction follows the core flow in the W3C [EPUB Annotations Use Cases and Requirements](https://www.w3.org/TR/epub-anno-ucr/): select text, then highlight, underline or add a note with a chosen color.
 
 - Select text in the reader and right-click: copy, highlight, underline, wavy underline, or add a note.
-- Highlights, underlines and wavy underlines support yellow / green / blue / pink / black. The note dialog also offers **Note only**, which adds no visual mark.
-- Each annotation stores its CFI, quote, chapter, progress, color and style; click a highlight or underline to edit its note/color/style or delete it. Wavy underlines use the CSS Custom Highlight API.
+- The default palette has yellow / green / blue / pink / black. Colors can be renamed, changed, added or removed in Settings; the note dialog also offers **Note only**, which adds no visual mark.
+- Each annotation stores its CFI, quote, chapter, progress, color and style; click annotated text to edit its note/color/style or delete it.
+- Highlights, underlines and wavy underlines use the CSS Custom Highlight API, so they cover only the selected text rather than whole lines.
 - The top-bar **Annotations** button opens a sidebar with all annotations, jump targets and delete actions.
 - Notes are plain text and stored locally in `data.json`. Annotation threads and image annotations are not included in this version.
 
