@@ -18,7 +18,7 @@ A focused local EPUB reader with a library, table of contents, bookmarks, light/
 - 📤 **Two export modes** – The data version includes Reading Notes, annotations, bookmarks and progress; the pure version copies the original EPUB with no annotations.
 - 🧭 **Library actions** – Hover a book to reveal “···”, or right-click it, for details, export and delete.
 - ☑️ **Bulk actions** – Enter selection mode on the library page to export or delete multiple books.
-- 🎨 **Appearance** – Light / dark / system / sunrise-sunset auto; configurable accents, reading fonts and annotation colors.
+- 🎨 **Appearance** – Light / dark / system / sunrise-sunset auto; configurable reading fonts and annotation colors, font import and reset-to-default.
 - 🏷️ **Duplicate imports** – Importing books with the same title shows `Title-1`, `Title-2`, etc.
 - 🌗 **Light & dark** – Switch the UI and book typography together, or follow the system theme; restore the previous theme on launch without a white flash.
 - 🪟 **Resizable window** – Re-paginate when the window, font size or margins change, keeping the previous anchor sentence on the current page without reloading the book.
@@ -242,9 +242,9 @@ Open settings from the gear on the library page:
 - **Theme**: light, dark, follow system, or sunrise/sunset auto.
 - **Sunrise/sunset** uses local geolocation to compute the day's sunrise and sunset; if location is unavailable it falls back to local 06:00 / 18:00.
 - The sun/moon button cycles light → dark → auto; auto mode shows a small `A` badge.
-- **Accent colors** can be set separately for light and dark themes.
-- **Reading fonts**: Source Han Serif, Songti, Kaiti, Heiti, FangSong, Source Han Sans, Yuanti and monospace.
-- **Annotation colors**: choose which colors appear in the selection menu and note dialog; at least one remains enabled.
+- **Reading fonts**: 8 built-ins plus local `.ttf` / `.otf` / `.woff` / `.woff2` imports; imported fonts can be removed.
+- **Annotation colors**: edit each color and label, add or remove colors; the selection menu and note dialog only show the current palette, with at least one color.
+- **Reset defaults**: restores theme, fonts, annotation colors and other preferences without deleting books, annotations or bookmarks.
 
 ## 🫥 Stealth Mode
 

@@ -1,4 +1,4 @@
-import type { AppTheme, ReaderFont } from '@shared/types'
+import type { AppTheme, CustomFont, ReaderFont } from '@shared/types'
 
 export const readerFontStacks: Record<ReaderFont, string> = {
   serif: '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, serif',
@@ -11,7 +11,7 @@ export const readerFontStacks: Record<ReaderFont, string> = {
   mono: '"Sarasa Mono SC", "Cascadia Mono", Consolas, monospace'
 }
 
-export const readerFontLabels: Record<ReaderFont, string> = {
+export const readerFontLabels: Record<string, string> = {
   serif: '思源宋体',
   song: '宋体',
   kai: '楷体',
@@ -20,6 +20,16 @@ export const readerFontLabels: Record<ReaderFont, string> = {
   hei: '思源黑体',
   yuan: '圆体',
   mono: '等宽'
+}
+
+export function fontStack(font: ReaderFont, customFonts: CustomFont[]): string {
+  const custom = customFonts.find((item) => item.id === font)
+  if (custom) return `"${custom.family}", ${readerFontStacks.serif}`
+  return readerFontStacks[font] ?? readerFontStacks.serif
+}
+
+export function fontLabel(font: ReaderFont, customFonts: CustomFont[]): string {
+  return customFonts.find((item) => item.id === font)?.label ?? readerFontLabels[font] ?? '自定义字体'
 }
 
 export interface ReaderPalette {

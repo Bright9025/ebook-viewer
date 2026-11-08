@@ -1,4 +1,5 @@
 import type { AnnotationColor, AnnotationStyle } from '@shared/types'
+import { defaultAnnotationColors } from '@shared/defaults'
 
 export interface AnnotationColorOption {
   color: AnnotationColor
@@ -12,13 +13,12 @@ export interface AnnotationStyleOption {
   label: string
 }
 
-export const annotationColors: AnnotationColorOption[] = [
-  { color: 'yellow', label: '黄色', swatch: '#e7b84b', fill: 'rgba(231, 184, 75, 0.38)' },
-  { color: 'green', label: '绿色', swatch: '#6faf83', fill: 'rgba(111, 175, 131, 0.34)' },
-  { color: 'blue', label: '蓝色', swatch: '#6e9fc7', fill: 'rgba(110, 159, 199, 0.34)' },
-  { color: 'pink', label: '粉色', swatch: '#cf83a0', fill: 'rgba(207, 131, 160, 0.32)' },
-  { color: 'black', label: '黑色', swatch: '#2b2a27', fill: 'rgba(43, 42, 39, 0.28)' }
-]
+export const annotationColors: AnnotationColorOption[] = defaultAnnotationColors.map((item) => ({
+  color: item.value,
+  label: item.label,
+  swatch: item.value,
+  fill: hexToRgba(item.value, 0.35)
+}))
 
 export const annotationStyles: AnnotationStyleOption[] = [
   { style: 'highlight', label: '高亮' },
@@ -28,9 +28,22 @@ export const annotationStyles: AnnotationStyleOption[] = [
 ]
 
 export function annotationColor(color: AnnotationColor): AnnotationColorOption {
-  return annotationColors.find((item) => item.color === color) ?? annotationColors[0]
+  const preset = defaultAnnotationColors.find((item) => item.id === color || item.value === color)
+  const swatch = preset?.value ?? (/^#[0-9a-f]{6}$/i.test(color) ? color : defaultAnnotationColors[0].value)
+  return {
+    color,
+    label: preset?.label ?? '自定义',
+    swatch,
+    fill: hexToRgba(swatch, 0.35)
+  }
 }
 
 export function annotationStyle(style: AnnotationStyle): string {
   return annotationStyles.find((item) => item.style === style)?.label ?? '高亮'
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (!match) return `rgba(231, 184, 75, ${alpha})`
+  return `rgba(${parseInt(match[1], 16)}, ${parseInt(match[2], 16)}, ${parseInt(match[3], 16)}, ${alpha})`
 }

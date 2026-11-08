@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { AppTheme, ReaderFont, ReaderSettings, ThemeMode } from '@shared/types'
-import { readerFontLabels, readerFontStacks } from '../lib/theme'
+import { fontLabel, fontStack, readerFontLabels } from '../lib/theme'
+import { useAppStore } from '../stores/app'
 import AppIcon from './AppIcon.vue'
+
+const store = useAppStore()
 
 const props = defineProps<{
   open: boolean
@@ -19,7 +22,10 @@ const emit = defineEmits<{
   reset: []
 }>()
 
-const fonts = Object.keys(readerFontLabels) as ReaderFont[]
+const fonts = computed<ReaderFont[]>(() => [
+  ...Object.keys(readerFontLabels),
+  ...store.settings.customFonts.map((font) => font.id)
+])
 
 const fontSizeLabel = computed(() => `${props.draft.fontSize}px`)
 const lineHeightLabel = computed(() => props.draft.lineHeight.toFixed(2))
@@ -81,11 +87,11 @@ function stepFont(delta: number): void {
                   :key="font"
                   class="font-option"
                   :class="{ active: draft.font === font }"
-                  :style="{ fontFamily: readerFontStacks[font] }"
+                  :style="{ fontFamily: fontStack(font, store.settings.customFonts) }"
                   type="button"
                   @click="update({ font }); emit('persist')"
                 >
-                  {{ readerFontLabels[font] }}
+                  {{ fontLabel(font, store.settings.customFonts) }}
                 </button>
               </div>
             </section>
@@ -169,7 +175,7 @@ function stepFont(delta: number): void {
 
           <footer class="settings-foot">
             <button class="reset-button" type="button" @click="emit('reset')">恢复默认</button>
-            <span class="preview-note" :style="{ fontFamily: readerFontStacks[draft.font] }">阅读，是安静的出走。</span>
+            <span class="preview-note" :style="{ fontFamily: fontStack(draft.font, store.settings.customFonts) }">阅读，是安静的出走。</span>
           </footer>
         </aside>
       </div>

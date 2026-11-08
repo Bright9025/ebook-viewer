@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type { AnnotationColor, AnnotationStyle } from '@shared/types'
-import { annotationColors, annotationStyles } from '../lib/annotations'
+import { annotationColor, annotationStyles } from '../lib/annotations'
 import { useAppStore } from '../stores/app'
 import AppIcon from './AppIcon.vue'
 
@@ -27,12 +27,26 @@ const draftColor = ref<AnnotationColor>('yellow')
 const draftStyle = ref<AnnotationStyle>('highlight')
 const textarea = ref<HTMLTextAreaElement | null>(null)
 const visibleColors = computed(() => {
-  const enabled = annotationColors.filter((item) => store.settings.annotationColors.includes(item.color))
-  if (!enabled.some((item) => item.color === props.color)) {
-    const current = annotationColors.find((item) => item.color === props.color)
-    if (current) enabled.push(current)
+  const options = store.settings.annotationColors.map((option) => ({
+    id: option.id,
+    label: option.label,
+    value: option.value,
+    swatch: annotationColor(option.value).swatch
+  }))
+  const currentColor = annotationColor(props.color)
+  if (
+    !options.some(
+      (option) => option.value === props.color || option.swatch.toLowerCase() === currentColor.swatch.toLowerCase()
+    )
+  ) {
+    options.push({
+      id: 'current',
+      label: currentColor.label,
+      value: props.color,
+      swatch: currentColor.swatch
+    })
   }
-  return enabled
+  return options
 })
 
 watch(
@@ -40,7 +54,13 @@ watch(
   async (open) => {
     if (!open) return
     draftNote.value = props.note
-    draftColor.value = props.color
+    const currentColor = annotationColor(props.color)
+    draftColor.value =
+      store.settings.annotationColors.find(
+        (item) =>
+          item.value === props.color ||
+          annotationColor(item.value).swatch.toLowerCase() === currentColor.swatch.toLowerCase()
+      )?.value ?? props.color
     draftStyle.value = props.markStyle
     await nextTick()
     textarea.value?.focus()
@@ -111,13 +131,13 @@ function onKeydown(event: KeyboardEvent): void {
             <div class="color-options">
               <button
                 v-for="item in visibleColors"
-                :key="item.color"
+                :key="item.id"
                 class="color-option"
-                :class="{ active: draftColor === item.color }"
+                :class="{ active: draftColor === item.value }"
                 type="button"
                 :title="item.label"
                 :aria-label="item.label"
-                @click="draftColor = item.color"
+                @click="draftColor = item.value"
               >
                 <span :style="{ background: item.swatch }" />
                 <span class="color-name">{{ item.label }}</span>

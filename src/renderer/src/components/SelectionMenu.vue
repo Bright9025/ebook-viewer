@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { AnnotationColor, AnnotationStyle } from '@shared/types'
-import { annotationColors, annotationStyles } from '../lib/annotations'
+import { annotationColor, annotationStyles } from '../lib/annotations'
 import { useAppStore } from '../stores/app'
 import AppIcon from './AppIcon.vue'
 
 const store = useAppStore()
 const visibleColors = computed(() =>
-  annotationColors.filter((item) => store.settings.annotationColors.includes(item.color))
+  store.settings.annotationColors.map((option) => ({
+    ...option,
+    swatch: annotationColor(option.value).swatch
+  }))
 )
 
 const props = defineProps<{
@@ -68,13 +71,13 @@ watch(
           <span class="color-label">颜色</span>
           <button
             v-for="item in visibleColors"
-            :key="item.color"
+            :key="item.id"
             class="color-swatch"
             :style="{ '--swatch': item.swatch }"
             type="button"
             :title="`${item.label}${annotationStyles.find((option) => option.style === selectedStyle)?.label}`"
             :aria-label="`${item.label}${annotationStyles.find((option) => option.style === selectedStyle)?.label}`"
-            @click="emit('annotate', item.color, selectedStyle)"
+            @click="emit('annotate', item.value, selectedStyle)"
           />
         </div>
 

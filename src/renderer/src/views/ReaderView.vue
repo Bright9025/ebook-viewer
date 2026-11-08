@@ -13,7 +13,7 @@ import SelectionMenu from '../components/SelectionMenu.vue'
 import { collectTopAnchor, isAnchorAtTop, isAnchorVisible, type ReaderAnchor } from '../lib/anchor'
 import { annotationColor } from '../lib/annotations'
 import { chapterLabelFor, flattenToc, loadBook, stripHash, toArrayBuffer, type FlatTocItem } from '../lib/epub'
-import { readerFontStacks, readerPalette } from '../lib/theme'
+import { fontStack, readerPalette } from '../lib/theme'
 import { errorMessage, toast } from '../lib/toast'
 import { useAppStore } from '../stores/app'
 
@@ -333,7 +333,7 @@ function applyReaderTheme(): void {
     body: {
       background: `${palette.background} !important`,
       color: `${palette.ink} !important`,
-      'font-family': `${readerFontStacks[settings.font]} !important`,
+      'font-family': `${fontStack(settings.font, store.settings.customFonts)} !important`,
       'font-size': `${settings.fontSize}px !important`,
       'line-height': `${settings.lineHeight} !important`,
       padding: `72px ${settings.margin}px 80px !important`,
@@ -721,8 +721,8 @@ function applyWavyAnnotation(annotation: Annotation): void {
       doc.head.appendChild(style)
     }
     const color = annotationColor(annotation.color)
-    const decorationColor =
-      annotation.color === 'black' && store.theme === 'dark' ? '#dedad2' : color.swatch
+    const isBlack = annotation.color === 'black' || color.swatch.toLowerCase() === '#2b2a27'
+    const decorationColor = isBlack && store.theme === 'dark' ? '#dedad2' : color.swatch
     const highlight = annotation.style === 'highlight'
     style.textContent += `::highlight(${name}) {
       ${highlight ? `background-color: ${color.swatch}66;` : `text-decoration-line: underline;

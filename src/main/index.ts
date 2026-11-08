@@ -1,8 +1,9 @@
 import { app, nativeTheme, protocol, session } from 'electron'
 import { promises as fs, mkdirSync } from 'node:fs'
-import { dirname, join, normalize, sep } from 'node:path'
+import { dirname, join, normalize, sep, basename } from 'node:path'
 import { registerIpc } from './ipc'
 import { initStore, getStore } from './store'
+import { fontMimeType } from './fonts'
 import { registerHotkeys, unregisterHotkeys } from './shortcuts'
 import { createTray, destroyTray } from './tray'
 import {
@@ -42,6 +43,16 @@ if (process.env.EBOOK_USER_DATA) {
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'app',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  },
+  {
+    scheme: 'app-font',
     privileges: {
       standard: true,
       secure: true,
@@ -111,6 +122,24 @@ function registerAppProtocol(): void {
       return new Response(data, {
         headers: {
           'content-type': mimeType(filePath),
+          'cache-control': 'no-cache'
+        }
+      })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
+
+  protocol.handle('app-font', async (request) => {
+    try {
+      const name = basename(decodeURIComponent(new URL(request.url).pathname))
+      if (!/^[a-z0-9-]+\.(ttf|otf|woff|woff2)$/i.test(name)) {
+        return new Response('Forbidden', { status: 403 })
+      }
+      const data = await fs.readFile(join(getStore().dir, 'fonts', name))
+      return new Response(new Uint8Array(data), {
+        headers: {
+          'content-type': fontMimeType(name),
           'cache-control': 'no-cache'
         }
       })

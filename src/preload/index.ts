@@ -40,7 +40,12 @@ const api: Api = {
       ipcRenderer.invoke('library:export-many', ids, mode, targetFolder) as Promise<string[]>
   },
   settings: {
-    set: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', patch) as Promise<AppSettings>
+    set: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', patch) as Promise<AppSettings>,
+    reset: () => ipcRenderer.invoke('settings:reset') as Promise<AppSettings>
+  },
+  fonts: {
+    import: (sourcePath?: string) => ipcRenderer.invoke('fonts:import', sourcePath) as Promise<import('../shared/types').CustomFont | null>,
+    remove: (fileName: string) => ipcRenderer.invoke('fonts:remove', fileName) as Promise<void>
   },
   progress: {
     set: (progress: ProgressPayload) => ipcRenderer.invoke('progress:set', progress) as Promise<void>

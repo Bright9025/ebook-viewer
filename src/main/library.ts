@@ -8,7 +8,7 @@ import { getStore } from './store'
 
 const MAX_COVER_LENGTH = 2_500_000
 const EXPORT_SCHEMA = 'ebook-viewer.annotation-export/v1'
-const ANNOTATION_COLORS = ['yellow', 'green', 'blue', 'pink', 'black'] as const
+const LEGACY_ANNOTATION_COLORS = ['yellow', 'green', 'blue', 'pink', 'black'] as const
 const ANNOTATION_STYLES = ['highlight', 'underline', 'wavy', 'none'] as const
 
 interface ExportSidecar {
@@ -127,9 +127,12 @@ function normalizeProgress(value: Partial<ReadingProgress>): ReadingProgress {
 
 function normalizeImportedAnnotation(value: Partial<Annotation>, bookId: string): Annotation | null {
   if (!value.cfi || !value.text) return null
-  const color = ANNOTATION_COLORS.includes(value.color as (typeof ANNOTATION_COLORS)[number])
-    ? (value.color as Annotation['color'])
-    : 'yellow'
+  const color =
+    typeof value.color === 'string' &&
+    (LEGACY_ANNOTATION_COLORS.includes(value.color as (typeof LEGACY_ANNOTATION_COLORS)[number]) ||
+      /^#[0-9a-f]{6}$/i.test(value.color))
+      ? value.color
+      : 'yellow'
   const style = ANNOTATION_STYLES.includes(value.style as (typeof ANNOTATION_STYLES)[number])
     ? (value.style as Annotation['style'])
     : 'highlight'

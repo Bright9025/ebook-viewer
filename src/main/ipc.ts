@@ -5,6 +5,7 @@ import { extname } from 'node:path'
 import type { Annotation, AppSettings, Bookmark, ExportMode, ProgressPayload, StealthContextPayload } from '../shared/types'
 import { addBook, readBook, readPath, removeBook, touchBook } from './library'
 import { exportBookAsEpub, exportBooksAsEpub } from './export'
+import { importCustomFont, removeCustomFont } from './fonts'
 import { registerHotkeys } from './shortcuts'
 import { getStore } from './store'
 import { refreshTrayMenu } from './tray'
@@ -68,6 +69,24 @@ export function registerIpc(): void {
   ipcMain.handle('library:touch', async (_event, id: string) => {
     await touchBook(id)
     refreshTrayMenu()
+  })
+
+  ipcMain.handle('settings:reset', async () => {
+    const store = getStore()
+    const settings = await store.resetSettings()
+    nativeTheme.themeSource = settings.theme === 'auto' ? 'system' : settings.theme
+    applyThemeBackground()
+    broadcast('events:settings-changed', settings)
+    return settings
+  })
+
+  ipcMain.handle('fonts:import', async (event, sourcePath?: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow()
+    return importCustomFont(win, sourcePath)
+  })
+
+  ipcMain.handle('fonts:remove', async (_event, fileName: string) => {
+    await removeCustomFont(fileName)
   })
 
   ipcMain.handle('settings:set', async (_event, patch: Partial<AppSettings>) => {

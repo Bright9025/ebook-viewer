@@ -5,6 +5,7 @@ import type {
   AppSettings,
   Book,
   Bookmark,
+  CustomFont,
   ExportMode,
   HotkeyStatus,
   ImportRequest,
@@ -29,8 +30,14 @@ export interface LibraryApi {
   exportMany(ids: string[], mode?: ExportMode, targetFolder?: string): Promise<string[]>
 }
 
+export interface FontsApi {
+  import(sourcePath?: string): Promise<CustomFont | null>
+  remove(fileName: string): Promise<void>
+}
+
 export interface SettingsApi {
   set(patch: Partial<AppSettings>): Promise<AppSettings>
+  reset(): Promise<AppSettings>
 }
 
 export interface ProgressApi {
@@ -90,6 +97,7 @@ export interface EventsApi {
 export interface Api {
   library: LibraryApi
   settings: SettingsApi
+  fonts: FontsApi
   progress: ProgressApi
   bookmarks: BookmarksApi
   annotations: AnnotationsApi

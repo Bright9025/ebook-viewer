@@ -1,6 +1,13 @@
 export type ThemeMode = 'light' | 'dark' | 'system' | 'auto'
 export type AppTheme = 'light' | 'dark'
-export type ReaderFont = 'serif' | 'song' | 'kai' | 'sans' | 'fangsong' | 'hei' | 'yuan' | 'mono'
+export type ReaderFont = string
+
+export interface CustomFont {
+  id: string
+  label: string
+  family: string
+  fileName: string
+}
 
 export interface ReadingProgress {
   cfi: string
@@ -32,7 +39,12 @@ export interface Bookmark {
   createdAt: number
 }
 
-export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'black'
+export type AnnotationColor = string
+export interface AnnotationColorSetting {
+  id: string
+  label: string
+  value: string
+}
 export type AnnotationStyle = 'highlight' | 'underline' | 'wavy' | 'none'
 export type ExportMode = 'data' | 'original'
 
@@ -56,9 +68,7 @@ export interface ReaderSettings {
   lineHeight: number
   margin: number
   justify: boolean
-}
-
-export interface StealthSettings {
+}export interface StealthSettings {
   opacity: number
   hideImages: boolean
   width: number
@@ -75,11 +85,8 @@ export interface HotkeySettings {
 
 export interface AppSettings {
   theme: ThemeMode
-  themeAccent: {
-    light: string
-    dark: string
-  }
-  annotationColors: AnnotationColor[]
+  annotationColors: AnnotationColorSetting[]
+  customFonts: CustomFont[]
   reader: ReaderSettings
   stealth: StealthSettings
   hotkeys: HotkeySettings

@@ -143,6 +143,12 @@ export class Store {
     return this.data.settings
   }
 
+  async resetSettings(): Promise<AppSettings> {
+    this.data.settings = mergeSettings(createDefaultData().settings, {})
+    await this.saveNow()
+    return this.data.settings
+  }
+
   saveSoon(delay = 250): void {
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
@@ -182,8 +188,12 @@ export class Store {
 
 function normalizeAnnotation(value: unknown): Annotation {
   const annotation = value as Partial<Annotation>
-  const colors = ['yellow', 'green', 'blue', 'pink', 'black'] as const
-  const color = colors.includes(annotation.color as (typeof colors)[number]) ? annotation.color! : 'yellow'
+  const legacyColors = ['yellow', 'green', 'blue', 'pink', 'black']
+  const color =
+    typeof annotation.color === 'string' &&
+    (legacyColors.includes(annotation.color) || /^#[0-9a-f]{6}$/i.test(annotation.color))
+      ? annotation.color
+      : 'yellow'
   const styles = ['highlight', 'underline', 'wavy', 'none'] as const
   const style = styles.includes(annotation.style as (typeof styles)[number]) ? annotation.style! : 'highlight'
   return {

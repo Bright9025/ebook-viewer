@@ -82,26 +82,24 @@ export const useAppStore = defineStore('app', () => {
   function applyTheme(): void {
     document.documentElement.dataset.theme = theme.value
     document.documentElement.style.colorScheme = theme.value
-    const accent = settings.value.themeAccent?.[theme.value] ?? (theme.value === 'dark' ? '#d49a60' : '#9a5a2d')
-    document.documentElement.style.setProperty('--accent', accent)
-    document.documentElement.style.setProperty('--accent-soft', hexToRgba(accent, 0.14))
-    document.documentElement.style.setProperty('--accent-ink', luminance(accent) > 0.55 ? '#211a12' : '#fff8ec')
     if (!window.location.hash.startsWith('#/stealth')) {
       window.api.window.setBackground(appBackground(theme.value))
     }
   }
 
-  function hexToRgba(hex: string, alpha: number): string {
-    const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
-    if (!match) return `rgba(154, 90, 45, ${alpha})`
-    return `rgba(${parseInt(match[1], 16)}, ${parseInt(match[2], 16)}, ${parseInt(match[3], 16)}, ${alpha})`
-  }
-
-  function luminance(hex: string): number {
-    const match = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
-    if (!match) return 0
-    const [r, g, b] = [1, 2, 3].map((index) => parseInt(match[index], 16) / 255)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  function syncCustomFonts(): void {
+    let style = document.getElementById('ebook-custom-fonts') as HTMLStyleElement | null
+    if (!style) {
+      style = document.createElement('style')
+      style.id = 'ebook-custom-fonts'
+      document.head.appendChild(style)
+    }
+    style.textContent = settings.value.customFonts
+      .map(
+        (font) =>
+          `@font-face { font-family: "${font.family}"; src: url("app-font://font/${font.fileName}"); font-display: swap; }`
+      )
+      .join('\n')
   }
 
   async function init(): Promise<void> {
@@ -115,6 +113,7 @@ export const useAppStore = defineStore('app', () => {
         annotations.value = data.annotations
         ready.value = true
         applyTheme()
+        syncCustomFonts()
         startAutoClock()
         if (settings.value.theme === 'auto') requestAutoLocation()
         window.api.setNativeTheme(theme.value)
@@ -126,6 +125,7 @@ export const useAppStore = defineStore('app', () => {
             updateAutoTheme()
           }
           applyTheme()
+          syncCustomFonts()
         })
         window.api.events.onRemoteProgress((progress) => {
           applyProgress(progress)
@@ -147,6 +147,7 @@ export const useAppStore = defineStore('app', () => {
       updateAutoTheme()
     }
     applyTheme()
+    syncCustomFonts()
     window.api.setNativeTheme(theme.value)
   }
 
